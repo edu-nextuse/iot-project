@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Temperatuur Monitor</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; margin-top: 50px; transition: background 0.5s; }
+        #temp { font-size: 5rem; font-weight: bold; }
+        
+        /* Kleuren voor de tekst */
+        .ok { color: green; }
+        .warning { color: red; }
+        .carefull { color: orange; }
+        .unknown { color: gray; }
+    </style>
+</head>
+<body>
+    <h1>Huidige temperatuur</h1>
+    <div id="temp" class="unknown">-- °C</div>
+    <p id="status-text">Wachten op data...</p>
+
+    <script>
+        async function update() {
+            try {
+                const res = await fetch("/current");
+                const data = await res.json();
+
+                const tempDiv = document.getElementById("temp");
+                
+                // Update de tekst en de kleur (class)
+                if (data.temp !== null) {
+                    tempDiv.textContent = data.temp + " °C";
+                    tempDiv.className = data.status;
+                    document.getElementById("status-text").textContent = "Status: " + data.status;
+                }
+            } catch (error) {
+                console.error("Fout bij ophalen data:", error);
+            }
+        }
+
+        // Elke seconde verversen
+        setInterval(update, 1000);
+        update(); // Ook direct uitvoeren bij laden
+    </script>
+</body>
+</html>
