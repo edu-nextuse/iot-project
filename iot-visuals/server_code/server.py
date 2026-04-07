@@ -32,6 +32,10 @@ def temperature():
 def index():
     return render_template("index.html")
 
+@app.route("/buddy")
+def buddy():
+    return render_template("buddy.html")
+
 @app.route("/current")
 def current():
     # Dit stuurt de data naar je JavaScript
