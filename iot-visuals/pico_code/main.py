@@ -38,13 +38,13 @@ while connection.isconnected():
         answer = response.json()
         
         # 4. Actie ondernemen op basis van het antwoord
-        if answer.get("warning") and answer.get("almost"):
+        if answer.get("carefull"):
             led_red.on()
             led_green.on()
-        elif answer.get("warning") and answer.get("almost") == False:
+        elif answer.get("warning"):
             led_red.on()
             led_green.off()
-        else:
+        elif answer.get("ok"):
             led_red.off()
             led_green.on()
             
