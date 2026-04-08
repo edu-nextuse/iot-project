@@ -8,6 +8,12 @@ last_temp = 0
 
 @app.route("/temperature", methods=["POST"])
 def temperature():
+    """
+        Functie ontvangt data van de Pico, dit is temperatuur.
+        Op basis van de temperatuur wordt er een status bepaald (ok, warning, carefull).
+        Deze data wordt opgeslagen in globale variabelen zodat ze kunnen worden gebruikt in andere routes.
+        Returnt een bevestiging dat de data is ontvangen.    
+    """
     global last_temp, last_status # Deze zijn global zodat we ze kunnen updaten en gebruiken in andere routes
     
     data = request.json
