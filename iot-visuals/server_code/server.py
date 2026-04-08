@@ -8,7 +8,7 @@ last_temp = 0
 
 @app.route("/temperature", methods=["POST"])
 def temperature():
-    global last_temp, last_status # Correcte variabelen
+    global last_temp, last_status # Deze zijn global zodat we ze kunnen updaten en gebruiken in andere routes
     
     data = request.json
     if not data:
@@ -30,15 +30,17 @@ def temperature():
 
 @app.route("/")
 def index():
+    # Dit is de homepage waar temp en status worden weergegeven
     return render_template("index.html")
 
 @app.route("/buddy")
 def buddy():
+    # Dit is de pagina waar de buddy zich bevindt, deze zal ook de data van de status gebruiken
     return render_template("buddy.html")
 
 @app.route("/current")
 def current():
-    # Dit stuurt de data naar je JavaScript
+    # Dit stuurt de data naar de JavaScript waar buddy.html & index.html deze kunnen gebruiken
     return jsonify({
         "temp": last_temp,
         "status": last_status
