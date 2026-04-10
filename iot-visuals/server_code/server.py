@@ -5,10 +5,18 @@ app = Flask(__name__)
 # Geef ze een standaardwaarde zodat de eerste 'fetch' niet faalt
 last_status = "unknown"
 last_temp = 0
+max_temp = 32
+min_temp = 29
 
 @app.route("/temperature", methods=["POST"])
 def temperature():
-    global last_temp, last_status # Correcte variabelen
+    """
+        Functie ontvangt data van de Pico, dit is temperatuur.
+        Op basis van de temperatuur wordt er een status bepaald (ok, warning, carefull).
+        Deze data wordt opgeslagen in globale variabelen zodat ze kunnen worden gebruikt in andere routes.
+        Returnt een bevestiging dat de data is ontvangen.    
+    """
+    global last_temp, last_status
     
     data = request.json
     if not data:
@@ -17,16 +25,22 @@ def temperature():
     current_temp = data.get("temp")
     last_temp = current_temp
 
+    # Initialiseer de response data
+    response_data = {"received": True}
+
     # Logica bepalen
-    if current_temp > 20:
+    if current_temp > max_temp:
         last_status = "warning"
-    elif current_temp < 17:
+        response_data.update({"warning": True}) # Rood aan, Groen uit
+    elif current_temp < min_temp:
         last_status = "ok"
+        response_data.update({"ok": True})      # Rood uit, Groen aan
     else:
         last_status = "carefull"
+        response_data.update({"carefull": True}) # Rood aan, Groen aan
 
     print(f"Update ontvangen: {last_temp}°C status: {last_status}")
-    return jsonify({"received": True})
+    return jsonify(response_data)
 
 @app.route("/")
 def index():
