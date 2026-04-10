@@ -1,6 +1,6 @@
 import tkinter as tk
 from threading import Thread
-
+# Dit wordt momenteel niet gebruikt
 class StatusWindow:
     def __init__(self):
         self.root = None

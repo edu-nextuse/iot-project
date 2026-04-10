@@ -49,6 +49,7 @@ FysioFit Buddy staat voor je klaar! Wat voor oefening doen wij vandaag?
   </div>
 </div>
 
+<!-- Feedback bericht -->
 <div id="feedback-bericht" class="container text-center fw-bold py-3">
     Wachten op meting...
 </div>
@@ -56,23 +57,25 @@ FysioFit Buddy staat voor je klaar! Wat voor oefening doen wij vandaag?
 <script>
   async function update() {
     try {
+        // Haal de huidige status op van de server
         const res = await fetch("/current");
         const data = await res.json();
 
+        // Stuurt de status naar ID "feedback-bericht" zodat deze kan worden weergegeven
         const feedbackDiv = document.getElementById("feedback-bericht");
 
         // Logica voor de tekstberichten
         if (data.status === "ok") {
             feedbackDiv.textContent = "Je bent lekker bezig!";
-            feedbackDiv.className = "container text-center fw-bold py-3 display-6"; // Groene tekst
+            feedbackDiv.className = "container text-center fw-bold py-3 display-6";
         } 
         else if (data.status === "carefull") {
             feedbackDiv.textContent = "Je doet de oefening goed, probeer je arm iets meer te strekken!";
-            feedbackDiv.className = "container text-center fw-bold py-3 display-6"; // Oranje tekst
+            feedbackDiv.className = "container text-center fw-bold py-3 display-6";
         } 
         else if (data.status === "warning") {
             feedbackDiv.textContent = "Oeps! Dit gaat niet goed. Zou je nog eens de intructies willen bekijken?";
-            feedbackDiv.className = "container text-center fw-bold py-3 display-6"; // Rode tekst
+            feedbackDiv.className = "container text-center fw-bold py-3 display-6";
         }
 
     } catch (error) {
