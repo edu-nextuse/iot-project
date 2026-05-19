@@ -1,64 +1,151 @@
-from flask import Flask, render_template, request, jsonify 
+from flask import Flask, render_template, request, jsonify
+import time
 
 app = Flask(__name__)
 
-# Geef ze een standaardwaarde zodat de eerste 'fetch' niet faalt
-last_status = "unknown"
-last_temp = 0
-max_temp = 32
-min_temp = 29
+# Globale state voor de actieve oefening en doelen
+current_task = {
+    "oefening_id": 0,    
+    "actief": 0          
+}
 
-@app.route("/temperature", methods=["POST"])
-def temperature():
-    """
-        Functie ontvangt data van de Pico, dit is temperatuur.
-        Op basis van de temperatuur wordt er een status bepaald (ok, warning, carefull).
-        Deze data wordt opgeslagen in globale variabelen zodat ze kunnen worden gebruikt in andere routes.
-        Returnt een bevestiging dat de data is ontvangen.    
-    """
-    global last_temp, last_status # Correcte variabelen
-    
-    data = request.json
-    if not data:
-        return jsonify({"error": "No data"}), 400
+# Mapping van ID naar naam en doelstelling
+OEFENINGEN_CONFIG = {
+    1: {"naam": "Appels plukken", "doel": 15},
+    2: {"naam": "Doekje vegen", "doel": 20}
+}
 
-    current_temp = data.get("temp")
-    last_temp = current_temp
+# Globale variabelen voor de ritme- en counter-analyse
+last_state = None          
+last_change_time = None    
+last_received_time = None  
+last_status = "unknown"    
+rep_counter = 0             # Telt het aantal succesvolle herhalingen
+has_hit_top = False         # Hulpvariabele om te checken of ze eerst bij '1' (boven) zijn geweest
 
-    # Initialiseer de response data
-    response_data = {"received": True}
-
-    # Logica bepalen
-    if current_temp > max_temp:
-        last_status = "warning"
-        response_data.update({"warning": True}) # Rood aan, Groen uit
-    elif current_temp < min_temp:
-        last_status = "ok"
-        response_data.update({"ok": True})      # Rood uit, Groen aan
-    else:
-        last_status = "carefull"
-        response_data.update({"carefull": True}) # Rood aan, Groen aan
-
-    print(f"Update ontvangen: {last_temp}°C status: {last_status}")
-    return jsonify(response_data)
+# Ritme instellingen
+MIN_FREQ = 2.0
+MAX_FREQ = 5.0
+TIMEOUT_LIMIT = 10.0       
 
 @app.route("/")
 def index():
-    # Dit is de homepage waar temp en status worden weergegeven
-    return render_template("index.html")
+    return render_template("portal.html")
 
 @app.route("/buddy")
 def buddy():
-    # Dit is de pagina waar de buddy zich bevindt, deze zal ook de data van de status gebruiken
-    return render_template("buddy.html")
+    return render_template("index.html")
+
+@app.route("/control_exercise", methods=["POST"])
+def control_exercise():
+    global current_task, last_state, last_change_time, last_status, rep_counter, has_hit_top
+    
+    data = request.json
+    if not data or "oefening_id" not in data or "actief" not in data:
+        return jsonify({"error": "Ongeldige data"}), 400
+    
+    current_task["oefening_id"] = int(data["oefening_id"])
+    current_task["actief"] = int(data["actief"])
+    
+    # Reset alle counters en variabelen bij een nieuwe start/stop
+    last_state = None
+    last_change_time = None
+    rep_counter = 0
+    has_hit_top = False
+    
+    if current_task["actief"] == 0:
+        last_status = "unknown"
+    else:
+        last_status = "unknown"
+        
+    return jsonify({"status": "success", "current_task": current_task})
+
+@app.route("/update_status", methods=["POST"])
+def update_status():
+    global last_state, last_change_time, last_received_time, last_status, current_task, rep_counter, has_hit_top
+    
+    if current_task["actief"] == 0 or last_status == "finished":
+        return jsonify({"status": "ignored", "reason": "Geen actieve of al afgeronde oefening"})
+
+    data = request.json
+    if not data or "state" not in data:
+        return jsonify({"error": "Ongeldige data"}), 400
+    
+    current_time = time.time()
+    last_received_time = current_time 
+    current_state = int(data["state"])
+
+    # Initialisatie bij de allereerste call
+    if last_state is None:
+        last_state = current_state
+        last_change_time = current_time
+        return jsonify({"status": "initialised"})
+
+    # Check op verandering van positie
+    if current_state != last_state:
+        duration = current_time - last_change_time
+        
+        # Validatie: was het tempo goed?
+        if duration < MIN_FREQ:
+            last_status = "too_fast"
+        elif duration > MAX_FREQ:
+            last_status = "too_slow"
+        else:
+            last_status = "ok"
+            
+            # --- COUNTER LOGICA (0 -> 1 -> 0) ---
+            if last_state == 0 and current_state == 1:
+                # Handen gaan omhoog in goed tempo
+                has_hit_top = True
+            elif last_state == 1 and current_state == 0 and has_hit_top:
+                # Handen gaan weer omlaag én ze zijn netjes boven geweest
+                rep_counter += 1
+                has_hit_top = False # Reset voor de volgende herhaling
+                print(f"[COUNTER] Rep voltooid! Stand: {rep_counter}")
+                
+                # Check of het doel van de huidige oefening is bereikt
+                oef_id = current_task["oefening_id"]
+                if oef_id in OEFENINGEN_CONFIG:
+                    if rep_counter >= OEFENINGEN_CONFIG[oef_id]["doel"]:
+                        last_status = "finished"
+                        print("[SYSTEM] Oefening succesvol afgerond!")
+            
+        last_state = current_state
+        last_change_time = current_time
+    else:
+        # Check op inactiviteit
+        time_stuck = current_time - last_change_time
+        if time_stuck > MAX_FREQ and last_status != "finished":
+            last_status = "no_movement"   
+
+    return jsonify({"status": "processed", "counter": rep_counter, "current_feedback": last_status})
 
 @app.route("/current")
 def current():
-    # Dit stuurt de data naar de JavaScript waar buddy.html & index.html deze kunnen gebruiken
+    global last_status, last_received_time, current_task, rep_counter
+    
+    if current_task["actief"] == 0:
+        return jsonify({"status": "unknown", "counter": 0, "target": 0})
+        
+    current_time = time.time()
+    
+    # Timeout check (behalve als ze al klaar zijn)
+    if last_status != "finished" and last_received_time and (current_time - last_received_time > TIMEOUT_LIMIT):
+        last_status = "error_piconnect"
+        
+    oef_id = current_task["oefening_id"]
+    target = OEFENINGEN_CONFIG[oef_id]["doel"] if oef_id in OEFENINGEN_CONFIG else 0
+        
     return jsonify({
-        "temp": last_temp,
-        "status": last_status
+        "status": last_status,
+        "counter": rep_counter,
+        "target": target
     })
 
+@app.route("/get_task", methods=["GET"])
+def get_task():
+    global current_task
+    return jsonify(current_task)
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True, use_reloader=False)
+    app.run(host="0.0.0.0", port=5000, debug=True)
