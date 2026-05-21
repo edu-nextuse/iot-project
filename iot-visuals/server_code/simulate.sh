@@ -4,7 +4,7 @@ URL="http://127.0.0.1:5000/update_status"
 REPS=20
 
 echo "=================================================="
-echo "  START SIMULATIE: $REPS herhalingen (3s interval)"
+echo "  START SIMULATIE: $REPS herhalingen (2s interval)"
 echo "=================================================="
 echo "Zorg dat je eerst een oefening start in het portaal!"
 echo ""
@@ -20,8 +20,8 @@ do
          -d '{"state": 1}'
     echo "" # Nieuwe regel voor de overzichtelijkheid
     
-    # Wacht 3 seconden
-    sleep 3
+    # Wacht 2 seconden
+    sleep 2
 
     # 2. Stuur State 0 (Handen LAAG)
     echo "[$(date +%H:%M:%S)] Stuur state: 0 (Handen LAAG)"
@@ -30,8 +30,8 @@ do
          -d '{"state": 0}'
     echo ""
     
-    # Wacht weer 3 seconden voor de volgende rep begint
-    sleep 3
+    # Wacht weer 2 seconden voor de volgende rep begint
+    sleep 2
 done
 
 echo "=================================================="

@@ -24,9 +24,9 @@ rep_counter = 0             # Telt het aantal succesvolle herhalingen
 has_hit_top = False         # Hulpvariabele om te checken of ze eerst bij '1' (boven) zijn geweest
 
 # Ritme instellingen
-MIN_FREQ = 2.0
+MIN_FREQ = 1.0
 MAX_FREQ = 5.0
-TIMEOUT_LIMIT = 10.0       
+TIMEOUT_LIMIT = 20.0       
 
 @app.route("/")
 def index():
@@ -109,16 +109,17 @@ def update_status():
                     if rep_counter >= OEFENINGEN_CONFIG[oef_id]["doel"]:
                         last_status = "finished"
                         print("[SYSTEM] Oefening succesvol afgerond!")
-            
+        print(last_state, current_state)    
         last_state = current_state
         last_change_time = current_time
     else:
         # Check op inactiviteit
         time_stuck = current_time - last_change_time
         if time_stuck > MAX_FREQ and last_status != "finished":
-            last_status = "no_movement"   
-
+            last_status = "no_movement"
+               
     return jsonify({"status": "processed", "counter": rep_counter, "current_feedback": last_status})
+
 
 @app.route("/current")
 def current():
