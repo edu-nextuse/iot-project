@@ -16,12 +16,12 @@ De software geeft wat errors, maar boot daarna een camera window met onze tracki
 ### Installatie ###
 Verzoek de goden dat deze dag niet komt, maar mochten we de omgeving opnieuw moeten opzetten zijn hieronder de stappen:
 
-# lees "https://core-electronics.com.au/guides/how-to-set-up-yolo-computer-vision-on-a-raspberry-pi-conda-and-ultralytics/"
-# download miniforge3
-# installeer miniforge3
-# upgrade conda libraries (wederom pip is niet sterk genoeg. We hebben Conda nodig om opencv binnen te halen) 
-## conda install conda-libmamba-solver -y
-## conda config --set solver libmamba
-# installeer Ultralytics "conda create --name ultralytics-env python=3.11 -y"
-# activate conda env "conda activate ultralytics-env"
-# Run main.py
+1. lees "https://core-electronics.com.au/guides/how-to-set-up-yolo-computer-vision-on-a-raspberry-pi-conda-and-ultralytics/"
+2. download miniforge3
+3. installeer miniforge3
+4. upgrade conda libraries (wederom pip is niet sterk genoeg. We hebben Conda nodig om opencv binnen te halen) 
+ - conda install conda-libmamba-solver -y
+ - conda config --set solver libmamba
+5. installeer Ultralytics "conda create --name ultralytics-env python=3.11 -y"
+6. activate conda env "conda activate ultralytics-env"
+7.  Run main.py
