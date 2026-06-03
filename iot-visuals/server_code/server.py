@@ -16,6 +16,10 @@ OEFENINGEN_CONFIG = {
 }
 
 # Globale variabelen voor de ritme- en counter-analyse
+calibration_active = False
+system_online = False
+is_calibrated = False
+motion_data = "stop"
 last_state = None          
 last_change_time = None    
 last_received_time = None  
@@ -27,6 +31,7 @@ has_hit_top = False         # Hulpvariabele om te checken of ze eerst bij '1' (b
 MIN_FREQ = 1.0
 MAX_FREQ = 5.0
 TIMEOUT_LIMIT = 20.0       
+CALIBRATION_DURATION = 5.0
 
 @app.route("/")
 def index():
@@ -60,64 +65,102 @@ def control_exercise():
         
     return jsonify({"status": "success", "current_task": current_task})
 
+@app.route("/start_calibration", methods=["POST"])
+def start_calibration():
+    global calibration_active, last_change_time, is_calibrated
+    calibration_active = True
+    last_change_time = None
+    is_calibrated = False
+    return jsonify({"status": "started"})
+
+@app.route("/calibreer")
+def calibreer():
+    return render_template("calibratie.html")
+
 @app.route("/update_status", methods=["POST"])
 def update_status():
-    global last_state, last_change_time, last_received_time, last_status, current_task, rep_counter, has_hit_top
-    
-    if current_task["actief"] == 0 or last_status == "finished":
-        return jsonify({"status": "ignored", "reason": "Geen actieve of al afgeronde oefening"})
+    global last_state, last_change_time, last_received_time, last_status, current_task, rep_counter, has_hit_top, is_calibrated, calibration_active
 
     data = request.json
     if not data or "state" not in data:
         return jsonify({"error": "Ongeldige data"}), 400
-    
-    current_time = time.time()
-    last_received_time = current_time 
-    current_state = int(data["state"])
 
-    # Initialisatie bij de allereerste call
+    raw_state = data["state"]
+    cal_status = data.get("calibration_status")  # optioneel veld
+
+    if not is_calibrated:
+        if not calibration_active:
+            return jsonify({"status": "waiting", "calibrated": False})
+
+        if cal_status == "calibrated":
+            if last_change_time is None:
+                last_change_time = time.time()
+                print("[CALIBRATIE] Polsen in beeld, timer gestart")
+            elif time.time() - last_change_time >= CALIBRATION_DURATION:
+                is_calibrated = True
+                calibration_active = False
+                last_state = None
+                last_change_time = None
+                print("[SYSTEM] Calibratie voltooid!")
+                return jsonify({"status": "calibrating", "calibrated": True})
+            elapsed = time.time() - last_change_time
+            progress = min(elapsed / CALIBRATION_DURATION * 100, 100)
+            return jsonify({"status": "calibrating", "calibrated": False, "progress": progress})
+        else:
+            if last_change_time is not None:
+                print("[CALIBRATIE] Polsen uit beeld, timer gereset")
+            last_change_time = None
+            return jsonify({"status": "out_of_frame", "calibrated": False, "progress": 0})
+
+    # Gecalibreerd — normale oefening logica
+    if not isinstance(raw_state, int):
+        return jsonify({"status": "ignored", "reason": "Ongeldige state"}), 200
+
+    current_state = int(raw_state)
+
+    if current_task["actief"] == 0 or last_status == "finished":
+        return jsonify({"status": "ignored", "reason": "Geen actieve of al afgeronde oefening"})
+
+    current_time = time.time()
+    last_received_time = current_time
+    current_state = int(raw_state)
+
     if last_state is None:
         last_state = current_state
         last_change_time = current_time
         return jsonify({"status": "initialised"})
 
-    # Check op verandering van positie
     if current_state != last_state:
         duration = current_time - last_change_time
-        
-        # Validatie: was het tempo goed?
+
         if duration < MIN_FREQ:
             last_status = "too_fast"
         elif duration > MAX_FREQ:
             last_status = "too_slow"
         else:
             last_status = "ok"
-            
-            # --- COUNTER LOGICA (0 -> 1 -> 0) ---
+
             if last_state == 0 and current_state == 1:
-                # Handen gaan omhoog in goed tempo
                 has_hit_top = True
             elif last_state == 1 and current_state == 0 and has_hit_top:
-                # Handen gaan weer omlaag én ze zijn netjes boven geweest
                 rep_counter += 1
-                has_hit_top = False # Reset voor de volgende herhaling
+                has_hit_top = False
                 print(f"[COUNTER] Rep voltooid! Stand: {rep_counter}")
-                
-                # Check of het doel van de huidige oefening is bereikt
+
                 oef_id = current_task["oefening_id"]
                 if oef_id in OEFENINGEN_CONFIG:
                     if rep_counter >= OEFENINGEN_CONFIG[oef_id]["doel"]:
                         last_status = "finished"
                         print("[SYSTEM] Oefening succesvol afgerond!")
-        print(last_state, current_state)    
+
+        print(last_state, current_state)
         last_state = current_state
         last_change_time = current_time
     else:
-        # Check op inactiviteit
         time_stuck = current_time - last_change_time
         if time_stuck > MAX_FREQ and last_status != "finished":
             last_status = "no_movement"
-               
+
     return jsonify({"status": "processed", "counter": rep_counter, "current_feedback": last_status})
 
 
@@ -142,6 +185,41 @@ def current():
         "counter": rep_counter,
         "target": target
     })
+    
+@app.route("/set_system", methods=["POST"])
+def set_system():
+    global system_online
+    data = request.json
+    if not data or "online" not in data:
+        return jsonify({"error": "Ongeldige data"}), 400
+    system_online = bool(data["online"])
+    print(f"[SYSTEM] System online: {system_online}")
+    return jsonify({"status": "success", "online": system_online})
+
+@app.route("/motion_status")
+def motion_status():
+    global system_online
+    motion = "start" if system_online else "stop"
+    print(f"[MOTION] Returned: {motion} (system_online={system_online})")
+    return jsonify({"motion": motion})
+    
+@app.route("/calibration_status")
+def calibration_status():
+    global is_calibrated, last_change_time
+    if is_calibrated:
+        return jsonify({"status": "calibrated", "progress": 100})
+    if last_change_time is None:
+        return jsonify({"status": "out_of_frame", "progress": 0})
+    elapsed = time.time() - last_change_time
+    progress = min(elapsed / CALIBRATION_DURATION * 100, 100)
+    return jsonify({"status": "calibrating", "progress": progress})
+    
+@app.route("/reset_calibration", methods=["POST"])
+def reset_calibration():
+    global is_calibrated, last_change_time
+    is_calibrated = False
+    last_change_time = None
+    return jsonify({"status": "reset"})
 
 @app.route("/get_task", methods=["GET"])
 def get_task():
