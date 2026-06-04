@@ -19,27 +19,22 @@
         }
         .status-text { font-size: 3.5rem; font-weight: 800; text-transform: uppercase; }
         .status-sub { font-size: 1.5rem; opacity: 0.9; margin-top: 10px; }
-        .exercise-badge { font-size: 1.2rem; background: rgba(0, 0, 0, 0.4); padding: 8px 20px; border-radius: 50px; margin-bottom: 15px; }
-        .counter-badge { font-size: 2.5rem; font-weight: 800; background: rgba(255, 255, 255, 0.2); padding: 5px 30px; border-radius: 15px; margin-bottom: 25px; }
+        .exercise-badge { font-size: 1.2rem; background: rgba(0,0,0,0.4); padding: 8px 20px; border-radius: 50px; margin-bottom: 15px; }
+        .counter-badge { font-size: 2.5rem; font-weight: 800; background: rgba(255,255,255,0.2); padding: 5px 30px; border-radius: 15px; margin-bottom: 25px; }
         .stop-overlay { position: absolute; bottom: 30px; z-index: 10; }
-
-        /* Status Kleuren */
-        .bg-ok { background-color: #198754; }           
-        .bg-tempo { background-color: #ffc107; color: #212529 !important; } 
-        .bg-stuck { background-color: #fd7e14; }        
-        .bg-danger { background-color: #dc3545; }       
-        .bg-unknown { background-color: #6c757d; }      
-        .bg-finished { background-color: #6f42c1; } /* Paars voor de overwinning! */
+        .bg-ok { background-color: #198754; }
+        .bg-tempo { background-color: #ffc107; color: #212529 !important; }
+        .bg-stuck { background-color: #fd7e14; }
+        .bg-danger { background-color: #dc3545; }
+        .bg-unknown { background-color: #6c757d; }
+        .bg-finished { background-color: #6f42c1; }
     </style>
 </head>
 <body id="status-bg" class="bg-unknown">
 
 <div class="status-container position-relative">
     <div id="exercise-name" class="exercise-badge fw-bold">Geen actieve oefening</div>
-    
-    <!-- Live teller toegevoegd -->
     <div id="rep-counter-display" class="counter-badge">0 / 0</div>
-
     <div id="status-text" class="status-text">Wachten...</div>
     <div id="status-sub" class="status-sub">Start een oefening in het portaal om te beginnen.</div>
 
@@ -61,7 +56,7 @@
         try {
             const resStatus = await fetch("/current");
             const dataStatus = await resStatus.json();
-            
+
             const resTask = await fetch("/get_task");
             const dataTask = await resTask.json();
 
@@ -73,8 +68,6 @@
             const backBtn = document.getElementById("back-btn");
 
             exeName.textContent = oefeningenMatrix[dataTask.oefening_id] || `Oefening ID: ${dataTask.oefening_id}`;
-            
-            // Update het herhalingen aantal veilig via textContent
             counterDisp.textContent = `${dataStatus.counter} / ${dataStatus.target}`;
 
             if (dataTask.actief === 0) {
@@ -84,40 +77,33 @@
                 return;
             }
 
-            // Statussen afhandelen
             if (dataStatus.status === "finished") {
                 bg.className = "bg-finished";
                 text.textContent = "Goed gedaan! 🎉";
                 sub.textContent = "De oefening is helemaal afgerond voor vandaag!";
                 backBtn.className = "btn btn-success btn-lg fw-bold px-4 shadow text-white";
                 backBtn.textContent = "✓ Terug naar Portaal";
-            }
-            else if (dataStatus.status === "ok") {
+            } else if (dataStatus.status === "ok") {
                 bg.className = "bg-ok";
                 text.textContent = "Goed zo!";
                 sub.textContent = "Je houdt een perfect tempo aan.";
-            } 
-            else if (dataStatus.status === "too_fast") {
+            } else if (dataStatus.status === "too_fast") {
                 bg.className = "bg-tempo";
                 text.textContent = "Te Snel!";
                 sub.textContent = "Probeer de beweging rustiger uit te voeren.";
-            } 
-            else if (dataStatus.status === "too_slow") {
+            } else if (dataStatus.status === "too_slow") {
                 bg.className = "bg-tempo";
                 text.textContent = "Te Langzaam!";
                 sub.textContent = "Probeer het tempo iets op te voeren.";
-            }
-            else if (dataStatus.status === "no_movement") {
+            } else if (dataStatus.status === "no_movement") {
                 bg.className = "bg-stuck";
                 text.textContent = "Inactief";
                 sub.textContent = "Kom in beweging! Wissel tussen de posities.";
-            }
-            else if (dataStatus.status === "error_piconnect") {
+            } else if (dataStatus.status === "error_piconnect") {
                 bg.className = "bg-danger";
                 text.textContent = "Verbindingsfout";
                 sub.textContent = "Geen signaal ontvangen van de camera/Pi 5.";
-            }
-            else if (dataStatus.status === "unknown") {
+            } else if (dataStatus.status === "unknown") {
                 bg.className = "bg-unknown";
                 text.textContent = "Kom in beweging";
                 sub.textContent = "Begin de oefening om te starten.";
@@ -134,14 +120,20 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ oefening_id: 0, actief: 0 })
             });
+            await fetch('/set_system', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ online: false })
+            });
             window.location.href = "/";
         } catch (error) {
             console.error("Fout tijdens stoppen:", error);
         }
     }
 
-    setInterval(update, 250); 
+    setInterval(update, 250);
     update();
 </script>
+
 </body>
 </html>
