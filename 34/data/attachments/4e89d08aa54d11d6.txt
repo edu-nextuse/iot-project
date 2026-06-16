@@ -1,0 +1,2 @@
+[CALIBRATIE] Polsen in beeld, timer gestart
+[SYSTEM] Calibratie voltooid!
