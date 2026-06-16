@@ -1,0 +1,47 @@
+[SYSTEM] System online: True
+0 1
+[COUNTER] Rep voltooid! Stand: 1
+1 0
+0 1
+[COUNTER] Rep voltooid! Stand: 2
+1 0
+0 1
+[COUNTER] Rep voltooid! Stand: 3
+1 0
+0 1
+[COUNTER] Rep voltooid! Stand: 4
+1 0
+0 1
+[COUNTER] Rep voltooid! Stand: 5
+1 0
+0 1
+[COUNTER] Rep voltooid! Stand: 6
+1 0
+0 1
+[COUNTER] Rep voltooid! Stand: 7
+1 0
+0 1
+[COUNTER] Rep voltooid! Stand: 8
+1 0
+0 1
+[COUNTER] Rep voltooid! Stand: 9
+1 0
+0 1
+[COUNTER] Rep voltooid! Stand: 10
+1 0
+0 1
+[COUNTER] Rep voltooid! Stand: 11
+1 0
+0 1
+[COUNTER] Rep voltooid! Stand: 12
+1 0
+0 1
+[COUNTER] Rep voltooid! Stand: 13
+1 0
+0 1
+[COUNTER] Rep voltooid! Stand: 14
+1 0
+0 1
+[COUNTER] Rep voltooid! Stand: 15
+[SYSTEM] Oefening succesvol afgerond!
+1 0
