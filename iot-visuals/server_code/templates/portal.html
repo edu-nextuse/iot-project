@@ -308,6 +308,14 @@
         });
         const data = await response.json();
         if (data.status === 'success' && data.current_task.actief === 1) {
+
+            // ← Zet systeem online zodat Pi motion: start krijgt
+            await fetch('/set_system', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({online: true})
+            });
+
             const calRes = await fetch('/calibration_status');
             const calData = await calRes.json();
             window.location.href = calData.status === 'calibrated' ? '/buddy' : '/calibreer';

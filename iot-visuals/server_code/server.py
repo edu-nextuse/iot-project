@@ -54,9 +54,10 @@ def get_session():
 # database initialisatie en verbinding
 
 def get_db():
-    conn = sqlite3.connect(DB_PATH, timeout=10)
+    conn = sqlite3.connect(DB_PATH, timeout=30)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=30000")
     return conn
 
 def init_db():
@@ -292,6 +293,8 @@ def control_exercise():
     s["last_change_time"] = None
     s["rep_counter"] = 0
     s["has_hit_top"] = False
+    s["is_calibrated"] = False
+    s["calibration_active"] = False
 
     if s["current_task"]["actief"] == 0:
         s["last_status"] = "unknown"
