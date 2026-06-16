@@ -221,6 +221,7 @@ def get_session():
             "last_status": "unknown",
             "rep_counter": 0,
             "has_hit_top": False,
+            "latest_keypoints": {}
         }
     return sessions[ip]
 
@@ -256,7 +257,19 @@ def buddy():
 def calibreer():
     return render_template("calibratie.html")
 
-# oefening routes
+@app.route("/keypoints", methods=["POST"])
+def receive_keypoints():
+    s = get_session()
+    data = request.json
+    if not data or "keypoints" not in data:
+        return jsonify({"error": "Ongeldige data"}), 400
+    s["latest_keypoints"] = data["keypoints"]
+    return jsonify({"status": "ok"})
+
+@app.route("/keypoints", methods=["GET"])
+def get_keypoints():
+    s = get_session()
+    return jsonify(s["latest_keypoints"])
 
 
 @app.route("/control_exercise", methods=["POST"])
@@ -425,7 +438,7 @@ def motion_status():
     s = get_session()
     motion = "start" if s["system_online"] else "stop"
     print(f"[MOTION] Returned: {motion} (system_online={s['system_online']})")
-    return jsonify({"motion": motion})
+    return jsonify({"motion": motion, "exercise": s["current_task"]["oefening_id"]})
 
 
 @app.route("/calibration_status")
