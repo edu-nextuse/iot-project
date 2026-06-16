@@ -1,117 +1,195 @@
-import requests
-import time
 import pytest
-import allure
+import time
+import sys
+import os
 
-BASE_URL = "http://127.0.0.1:5000"
+# Zorg dat server.py importeerbaar is
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-@allure.feature("FysioFit HerhalingsTeller & RitmeAnalyse")
+from server import app, init_db, sessions
+
+# ── Fixtures ──────────────────────────────────────────────────────────────────
+
+@pytest.fixture
+def client():
+    """Flask test client met een schone database en sessie."""
+    app.config["TESTING"] = True
+    app.config["SECRET_KEY"] = "test"
+
+    with app.test_client() as client:
+        with app.app_context():
+            init_db()
+        # Schone sessie voor elke test
+        sessions.clear()
+        yield client
+        sessions.clear()
+
+def start_oefening(client, oefening_id=1):
+    """Hulpfunctie: log in en start een oefening."""
+    # Registreer + login testgebruiker
+    client.post("/register", data={
+        "name": "Test",
+        "email": "test@test.nl",
+        "password": "test123"
+    })
+    client.post("/login", data={
+        "email": "test@test.nl",
+        "password": "test123"
+    })
+    # Zet systeem online en start calibratie
+    client.post("/set_system", json={"online": True})
+    client.post("/start_calibration")
+    # Simuleer calibratie voltooid
+    s = list(sessions.values())[0]
+    s["is_calibrated"] = True
+    s["calibration_active"] = False
+    # Start oefening
+    client.post("/control_exercise", json={"oefening_id": oefening_id, "actief": 1})
+
+def update(client, state):
+    """Stuur een state update naar de server."""
+    return client.post("/update_status", json={
+        "state": state,
+        "calibration_status": "not_calibrated"
+    })
+
+def current(client):
+    """Haal huidige status op."""
+    return client.get("/current")
+
+# ── Tests ─────────────────────────────────────────────────────────────────────
+
 class TestFysioFitLogic:
 
-    @pytest.fixture(autouse=True)
-    def setup_and_teardown(self):
-        """Zorgt ervoor dat er voor elke test een schone oefening start (ID 1)."""
-        with allure.step("Reset systeem en start Oefening 1 (Appels plukken)"):
-            requests.post(f"{BASE_URL}/control_exercise", json={"oefening_id": 1, "actief": 1})
-        yield
-        with allure.step("Stop oefening na test"):
-            requests.post(f"{BASE_URL}/control_exercise", json={"oefening_id": 0, "actief": 0})
+    def test_perfect_rep_tempo(self, client):
+        """Een herhaling binnen 1-5 seconden geeft status 'ok' en telt mee."""
+        start_oefening(client)
+        s = list(sessions.values())[0]
 
-    @allure.story("Tempo Validatie")
-    @allure.title("Test Perfect Ritmische Beweging")
-    @allure.description("Controleert of een herhaling binnen de 2-5 seconden correct wordt geteld.")
-    def test_perfect_rep_tempo(self):
-        with allure.step("Stuur startpositie: 0 (handen laag)"):
-            requests.post(f"{BASE_URL}/update_status", json={"state": 0})
+        # Startpositie
+        update(client, 0)
 
-        with allure.step("Wacht 3 seconden (goed tempo) en stuur state 1"):
-            time.sleep(3)
-            res_up = requests.post(f"{BASE_URL}/update_status", json={"state": 1})
-            assert res_up.json()["current_feedback"] == "ok"
+        # Simuleer 3 seconden wachten door last_change_time terug te zetten
+        s["last_change_time"] -= 3.0
 
-        with allure.step("Wacht 3 seconden en voltooi de rep (terug naar state 0)"):
-            time.sleep(3)
-            res_down = requests.post(f"{BASE_URL}/update_status", json={"state": 0})
-            
-        with allure.step("Verifieer dat de teller op 1 staat en de status 'ok' is"):
-            assert res_down.json()["counter"] == 1
-            assert res_down.json()["current_feedback"] == "ok"
+        res = update(client, 1)
+        assert res.json["current_feedback"] == "ok"
 
-    @allure.story("Tempo Validatie")
-    @allure.title("Test Te Snelle Beweging")
-    @allure.description("Controleert of de status 'too_fast' wordt als de patiënt binnen 2 seconden beweegt.")
-    def test_rep_too_fast(self):
-        with allure.step("Stuur startpositie: 0"):
-            requests.post(f"{BASE_URL}/update_status", json={"state": 0})
+        s["last_change_time"] -= 3.0
+        res = update(client, 0)
 
-        with allure.step("Beweeg DIRECT (0.5s) naar state 1"):
-            time.sleep(0.5)
-            res = requests.post(f"{BASE_URL}/update_status", json={"state": 1})
-            
-        with allure.step("Verifieer feedback 'too_fast'"):
-            assert res.json()["current_feedback"] == "too_fast"
+        assert res.json["counter"] == 1
+        assert res.json["current_feedback"] == "ok"
 
-    @allure.story("Tempo Validatie")
-    @allure.title("Test Te Langzame Beweging")
-    @allure.description("Controleert of de status 'too_slow' wordt als een beweging langer dan 5 seconden duurt.")
-    def test_rep_too_slow(self):
-        with allure.step("Stuur startpositie: 0"):
-            requests.post(f"{BASE_URL}/update_status", json={"state": 0})
+    def test_rep_too_fast(self, client):
+        """Beweging binnen 0.5 seconden geeft 'too_fast'."""
+        start_oefening(client)
+        s = list(sessions.values())[0]
 
-        with allure.step("Wacht 5.5 seconden en wissel naar state 1"):
-            time.sleep(5.5)
-            res = requests.post(f"{BASE_URL}/update_status", json={"state": 1})
-            
-        with allure.step("Verifieer feedback 'too_slow'"):
-            assert res.json()["current_feedback"] == "too_slow"
+        update(client, 0)
+        s["last_change_time"] -= 0.5  # slechts 0.5 seconden verstreken
 
-    @allure.story("Foutafhandeling & Inactiviteit")
-    @allure.title("Test Patiënt Staat Stil (Inactief)")
-    @allure.description("Controleert of de server herkent wanneer de patiënt stopt met bewegen (geen state-wissel).")
-    def test_patient_stuck(self):
-        with allure.step("Stuur initiële state: 0"):
-            requests.post(f"{BASE_URL}/update_status", json={"state": 0})
-            
-        with allure.step("Wacht 5.5 seconden zonder nieuwe state te sturen"):
-            time.sleep(5.5)
-            
-        with allure.step("Vraag huidige status op via /current"):
-            res = requests.get(f"{BASE_URL}/current")
-            
-        assert res.json()["status"] == "no_movement"
+        res = update(client, 1)
+        assert res.json["current_feedback"] == "too_fast"
 
-    @allure.story("Foutafhandeling & Inactiviteit")
-    @allure.title("Test Pi 5 Verbindingsfout (Timeout)")
-    @allure.description("Controleert of het dashboard in de 'error_piconnect' schiet als de Pi langer dan 10 seconden helemaal niks stuurt.")
-    def test_pi_disconnect_timeout(self):
-        with allure.step("Stuur eenmalig data"):
-            requests.post(f"{BASE_URL}/update_status", json={"state": 0})
-            
-        with allure.step("Simuleer wegzakken verbinding door 10.5 seconden niks te sturen"):
-            time.sleep(10.5)
-            
-        with allure.step("Controleer of het dashboard de error status overneemt"):
-            res = requests.get(f"{BASE_URL}/current")
-            
-        assert res.json()["status"] == "error_piconnect"
+    def test_rep_too_slow(self, client):
+        """Beweging na meer dan 5 seconden geeft 'too_slow'."""
+        start_oefening(client)
+        s = list(sessions.values())[0]
 
-    @allure.story("Doelstellingen")
-    @allure.title("Test Oefening Voltooid (Finished)")
-    @allure.description("Controleert of de status 'finished' wordt zodra het doel (bijv. 15 reps) is bereikt.")
-    def test_exercise_finished_flow(self):
-        with allure.step("Simuleer versneld de herhalingen tot vlak voor het doel"):
-            # We zetten de counter handmatig omhoog in de test door loops te simuleren 
-            # (In een echte unit test zou je de globale variabele mocken, maar we testen de HTTP flow)
-            state = 0
-            for _ in range(14): # Doe 14 volledige reps in een goed tempo (28 stappen)
-                requests.post(f"{BASE_URL}/update_status", json={"state": state})
-                state = 1 if state == 0 else 0
-                time.sleep(2.1) # Net boven de 2 seconden grens
-            
-            # De 15e rep die de climax triggert
-            requests.post(f"{BASE_URL}/update_status", json={"state": 1})
-            time.sleep(2.1)
-            final_res = requests.post(f"{BASE_URL}/update_status", json={"state": 0})
+        update(client, 0)
+        s["last_change_time"] -= 5.5  # 5.5 seconden verstreken
 
-        with allure.step("Controleer of de status nu 'finished' is"):
-            assert final_res.json()["current_feedback"] == "finished" or requests.get(f"{BASE_URL}/current").json()["status"] == "finished"
+        res = update(client, 1)
+        assert res.json["current_feedback"] == "too_slow"
+
+    def test_patient_stuck(self, client):
+        """Geen beweging na 5+ seconden geeft 'no_movement' via /current."""
+        start_oefening(client)
+        s = list(sessions.values())[0]
+
+        update(client, 0)
+
+        # Simuleer stilstand: zet last_change_time en last_received_time terug
+        s["last_change_time"] -= 5.5
+        s["last_received_time"] -= 5.5
+
+        # Stuur zelfde state opnieuw (geen wissel → no_movement check)
+        update(client, 0)
+
+        res = current(client)
+        assert res.json["status"] == "no_movement"
+
+    def test_pi_disconnect_timeout(self, client):
+        """Geen data van Pi voor 10+ seconden geeft 'error_piconnect' via /current."""
+        start_oefening(client)
+        s = list(sessions.values())[0]
+
+        update(client, 0)
+
+        # Simuleer 10.5 seconden geen data
+        s["last_received_time"] -= 10.5
+
+        res = current(client)
+        assert res.json["status"] == "error_piconnect"
+
+    def test_exercise_finished_flow(self, client):
+        """15 volledige reps op goed tempo geeft status 'finished'."""
+        start_oefening(client, oefening_id=1)
+        s = list(sessions.values())[0]
+
+        final_res = None
+        for _ in range(15):
+            # Naar boven (0 → 1)
+            update(client, 0)
+            s["last_change_time"] -= 2.1
+            update(client, 1)
+            s["has_hit_top"] = True
+
+            # Naar beneden (1 → 0) — telt als rep
+            s["last_change_time"] -= 2.1
+            final_res = update(client, 0)
+
+        assert final_res.json["current_feedback"] == "finished"
+        assert final_res.json["counter"] == 15
+
+    def test_calibration_happy_path(self, client):
+        """Calibratie slaagt na CALIBRATION_DURATION seconden polsen in beeld."""
+        client.post("/start_calibration")
+        s = list(sessions.values())[0]
+
+        # Eerste update: timer start
+        client.post("/update_status", json={"state": 0, "calibration_status": "calibrated"})
+        assert s["last_change_time"] is not None
+
+        # Simuleer 5 seconden verstreken
+        s["last_change_time"] -= 5.1
+
+        res = client.post("/update_status", json={"state": 0, "calibration_status": "calibrated"})
+        assert res.json["calibrated"] is True
+        assert s["is_calibrated"] is True
+
+    def test_calibration_onderbreking(self, client):
+        """Timer reset als polsen uit beeld gaan."""
+        client.post("/start_calibration")
+        s = list(sessions.values())[0]
+
+        # Start timer
+        client.post("/update_status", json={"state": 0, "calibration_status": "calibrated"})
+        s["last_change_time"] -= 3.0  # 3 seconden gevorderd
+
+        # Onderbreking
+        res = client.post("/update_status", json={"state": 0, "calibration_status": "not_calibrated"})
+        assert res.json["status"] == "out_of_frame"
+        assert s["last_change_time"] is None  # timer gereset
+
+    def test_calibration_out_of_frame(self, client):
+        """Nooit gecalibreerd als polsen altijd out_of_frame zijn."""
+        client.post("/start_calibration")
+
+        for _ in range(10):
+            res = client.post("/update_status", json={"state": 0, "calibration_status": "not_calibrated"})
+            assert res.json.get("calibrated") is not True
+
+        s = list(sessions.values())[0]
+        assert s["is_calibrated"] is False
