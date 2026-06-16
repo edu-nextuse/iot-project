@@ -327,6 +327,7 @@ class TestFysioFitLogic:
 
         with allure.step("Simuleer 10.5 seconden geen verbinding"):
             s["last_received_time"] -= 10.5
+            s["last_change_time"] -= 10.5
 
         with allure.step("Controleer of het dashboard de error status toont"):
             res = current(client)
