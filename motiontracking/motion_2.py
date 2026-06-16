@@ -5,12 +5,27 @@ import cv2
 from ultralytics import YOLO
 import requests
 import time
+from dotenv import load_dotenv
+import os
 
-# Serverconfig
-SERVER_IP = "fysio.mikkelserver.org"
-SERVER_PORT = "5000"
-SERVER_URL = f"https://{SERVER_IP}/update_status"
-KP_DATA_ENDPOINT = f"https://{SERVER_IP}/keypoints"
+# Zoek de map van het script (motions/) en ga één map omhoog (buddy_code/) voor de .env
+script_dir = os.path.dirname(os.path.abspath(__file__))
+env_path = os.path.join(script_dir, '..', '.env')
+
+if os.path.exists(env_path):
+    load_dotenv(dotenv_path=env_path)
+else:
+    print(f"Watch-ERROR: .env bestand niet gevonden op pad: {env_path}")
+
+SERVER_IP = os.getenv('SERVER_IP')
+SERVER_PORT = os.getenv('SERVER_PORT')
+
+# Extra veiligheidscheck: plak http:// er handmatig voor als het ontbreekt in de .env
+if SERVER_IP and not SERVER_IP.startswith(('http://', 'https://')):
+    SERVER_IP = f"http://{SERVER_IP}"
+
+SERVER_URL = f"{SERVER_IP}:{SERVER_PORT}/update_status"
+KP_DATA_ENDPOINT = f"{SERVER_IP}:{SERVER_PORT}/keypoints"
 
 # Camera
 cap = cv2.VideoCapture(0)
@@ -18,7 +33,7 @@ cap.set(cv2.CAP_PROP_FRAME_WIDTH, 800)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 600)
 
 # YOLO model
-model = YOLO("yolov8s-pose_ncnn_model", task="pose")
+model = YOLO("/home/fysiofit/yolov8s-pose_ncnn_model", task="pose")
 
 # Zone
 zone_x1, zone_y1 = 600, 0
