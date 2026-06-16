@@ -7,10 +7,10 @@ import requests
 import time
 
 # Serverconfig
-SERVER_IP = "10.207.215.25"
+SERVER_IP = "fysio.mikkelserver.org"
 SERVER_PORT = "5000"
-SERVER_URL = f"http://{SERVER_IP}:{SERVER_PORT}/update_status"
-KP_DATA_ENDPOINT = f"http://{SERVER_IP}:{SERVER_PORT}/temp_endpoint"
+SERVER_URL = f"https://{SERVER_IP}/update_status"
+KP_DATA_ENDPOINT = f"https://{SERVER_IP}/keypoints"
 
 # Camera
 cap = cv2.VideoCapture(0)
@@ -21,12 +21,8 @@ cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 600)
 model = YOLO("yolov8s-pose_ncnn_model", task="pose")
 
 # Zone
-zone_x1, zone_y1 = 0, 0
-zone_x2, zone_y2 = 800, 100
-
-# Status vlaggen
-right_in_zone = False
-left_in_zone = False
+zone_x1, zone_y1 = 600, 0
+zone_x2, zone_y2 = 200, 600
 
 
 def build_keypoint_dict(kp):
@@ -48,14 +44,15 @@ def build_keypoint_dict(kp):
         "right_knee":     [int(kp[14][0]), int(kp[14][1])],
         "left_ankle":     [int(kp[15][0]), int(kp[15][1])],
         "right_ankle":    [int(kp[16][0]), int(kp[16][1])]
-    }        
+    }
+
 
 def send_keypoints(keypoints_dict):
     # YOLO geeft een array terug met 17 keypoints. Deze willen wij opslaan in een database.
     try:
         requests.post(
             KP_DATA_ENDPOINT,
-            json={"timestamp": time.time(),"keypoints":keypoints_dict},
+            json={"timestamp": time.time(), "keypoints": keypoints_dict},
             timeout=0.5
         )
     except Exception as e:
@@ -73,10 +70,12 @@ def send_event(state, calibration_status=None):
     except Exception as e:
         print(f"Watch-ERROR: send_event: {e}")
 
+
 ### calibratie loop ###
+# Voor doekje vegen hoeft er maar 1 pols in de zone te zijn (niet allebei tegelijk zoals bij appels plukken)
 calibrated = False
 calibration_status = "not_calibrated"
-both_in_zone = False
+any_in_zone = False
 keypoints_dict = None
 
 while not calibrated:
@@ -97,14 +96,14 @@ while not calibrated:
 
         right_now_in_zone = zone_x1 < wrist_right_x < zone_x2 and zone_y1 < wrist_right_y < zone_y2
         left_now_in_zone  = zone_x1 < wrist_left_x  < zone_x2 and zone_y1 < wrist_left_y  < zone_y2
-        both_now_in_zone  = right_now_in_zone and left_now_in_zone
+        any_now_in_zone   = right_now_in_zone or left_now_in_zone  # <-- 1 pols is genoeg
 
-        if both_now_in_zone and not both_in_zone:
+        if any_now_in_zone and not any_in_zone:
             calibration_status = "calibrated"
-        if not both_now_in_zone and both_in_zone:
+        if not any_now_in_zone and any_in_zone:
             calibration_status = "not_calibrated"
 
-        both_in_zone = both_now_in_zone
+        any_in_zone = any_now_in_zone
 
     try:
         response = requests.post(
@@ -122,8 +121,7 @@ while not calibrated:
 
 ### Main loop ###
 
-right_in_zone = False
-left_in_zone = False
+wrist_in_zone = False
 
 while True:
     ret, frame = cap.read()
@@ -142,24 +140,18 @@ while True:
         keypoints_dict = build_keypoint_dict(kp)
         send_keypoints(keypoints_dict)
 
-        # Rechterpols
-        #2 LIJNEN HIERONDER MISTE, HAD JE WEL BIJ LINKERPOLS
+        # Beide polsen checken, maar het maakt niet uit welke: 1 pols tegelijk is genoeg
         wrist_right_x, wrist_right_y = int(kp[10][0]), int(kp[10][1])
-        right_now_in_zone = zone_x1 < wrist_right_x < zone_x2 and zone_y1 < wrist_right_y < zone_y2
-        if right_now_in_zone and not right_in_zone:
-            send_event(1)
-        if not right_now_in_zone and right_in_zone:
-            send_event(0)
-        right_in_zone = right_now_in_zone
+        wrist_left_x, wrist_left_y   = int(kp[9][0]),  int(kp[9][1])
 
-        # Linkerpols
-        ## DIT HAD JE HIER DUS WEL
-        wrist_left_x, wrist_left_y = int(kp[9][0]), int(kp[9][1])
-        left_now_in_zone = zone_x1 < wrist_left_x < zone_x2 and zone_y1 < wrist_left_y < zone_y2
-        if left_now_in_zone and not left_in_zone:
+        right_now_in_zone = zone_x1 < wrist_right_x < zone_x2 and zone_y1 < wrist_right_y < zone_y2
+        left_now_in_zone  = zone_x1 < wrist_left_x  < zone_x2 and zone_y1 < wrist_left_y  < zone_y2
+        now_in_zone = right_now_in_zone or left_now_in_zone
+
+        if now_in_zone and not wrist_in_zone:
             send_event(1)
-        if not left_now_in_zone and left_in_zone:
+        if not now_in_zone and wrist_in_zone:
             send_event(0)
-        left_in_zone = left_now_in_zone
+        wrist_in_zone = now_in_zone
 
 cap.release()

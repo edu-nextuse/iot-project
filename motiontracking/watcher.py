@@ -3,10 +3,10 @@ import requests
 import subprocess
 
 #script naar de while loop verplaatst
-SERVER_IP = "10.207.215.25"
+SERVER_IP = "fysio.mikkelserver.org"
 SERVER_PORT = "5000"
-ENDPOINT = f"http://{SERVER_IP}:{SERVER_PORT}/motion_status"
-ERROR_ENDPOINT = f"http://{SERVER_IP}:{SERVER_PORT}/error"
+ENDPOINT = f"https://{SERVER_IP}/motion_status"
+ERROR_ENDPOINT = f"https://{SERVER_IP}/error"
 python_env = "/home/fysiofit/miniforge3/envs/ultralytics-env/bin/python3"
 
 process = None
@@ -24,11 +24,11 @@ while True:
         data = requests.get(ENDPOINT, timeout=1).json()
         status = data.get("motion")
 
-        exercise_name = data.get("exercise", "motion") #MOTION IS TIJDELIJKE NAAM!!
+        exercise_id = data.get("exercise", 1) 
         if not data or not status or not exercise_name:
             raise ValueError(f"Ongeldige server response! (Geen leuke error)")
 
-        SCRIPT = f"/home/fysiofit/{exercise_name}.py"
+        SCRIPT = f"/home/fysiofit/motion_{exercise_id}.py"
 
     except Exception as e:
         status = "stop"
