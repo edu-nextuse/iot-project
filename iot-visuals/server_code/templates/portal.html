@@ -5,167 +5,455 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>FysioFit - Portaal</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { font-size: 1.2rem; }
+        .navbar-brand { font-size: 1.4rem; }
+
+        .streak-pill {
+            background: #212529;
+            color: white;
+            border-radius: 50px;
+            padding: 6px 18px;
+            font-size: 1.3rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+
+        /* Carousel */
+        .carousel-outer {
+            overflow: hidden;
+            width: 100%;
+        }
+
+        .carousel-track {
+            display: flex;
+            transition: transform 0.35s ease;
+            will-change: transform;
+        }
+
+        .carousel-slide {
+            min-width: 100%;
+            padding: 0 0 16px 0;
+        }
+
+        .carousel-dots {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            padding: 14px 0 8px;
+        }
+
+        .dot {
+            width: 12px; height: 12px;
+            border-radius: 50%;
+            background: #dee2e6;
+            transition: background 0.2s;
+            cursor: pointer;
+        }
+        .dot.active { background: #212529; }
+
+        /* het kunnen aanklikken van de oefeningen */
+        .exercise-card {
+            cursor: pointer;
+            border: 2.5px solid transparent;
+            border-radius: 16px;
+            transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .exercise-card:active {
+            transform: scale(0.97);
+        }
+        .exercise-card:hover {
+            border-color: #198754;
+            box-shadow: 0 4px 20px rgba(25,135,84,0.15);
+        }
+        .exercise-card .card-body {
+            padding: 2rem 1.5rem;
+        }
+        .exercise-icon { font-size: 4rem; }
+        .card-title   { font-size: 1.5rem; }
+        .card-text    { font-size: 1.1rem; }
+
+        /* kalender voor oefeningen kunnen inplannen */
+        .cal-header {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            text-align: center;
+            font-weight: 700;
+            color: #6c757d;
+            font-size: 1rem;
+            margin-bottom: 8px;
+        }
+
+        .cal-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 6px;
+        }
+
+        .cal-day {
+            aspect-ratio: 1;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: 2px solid #e9ecef;
+            background: white;
+            transition: all 0.15s;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .cal-day:hover { border-color: #198754; }
+        .cal-day.empty { cursor: default; border-color: transparent; background: transparent; }
+        .cal-day.today { border-color: #212529; font-weight: 800; }
+        .cal-day.planned { background: #d1e7dd; border-color: #198754; color: #0f5132; }
+        .cal-day.past-done { background: #198754; border-color: #198754; color: white; }
+        .cal-day.past-done::after { content: '✓'; font-size: 0.75rem; }
+
+        .cal-day-num { line-height: 1; }
+        .cal-dot { width: 6px; height: 6px; border-radius: 50%; background: #198754; margin-top: 3px; }
+
+        .month-nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .month-nav button {
+            background: none;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            padding: 6px 16px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            font-weight: 700;
+        }
+        .month-nav button:hover { border-color: #212529; }
+
+        .month-title { font-size: 1.4rem; font-weight: 800; }
+
+        /* pop-up wanneer je oefeningen wilt inplannen in kalender */
+        .picker-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: flex-end;
+            justify-content: center;
+        }
+        .picker-overlay.open { display: flex; }
+
+        .picker-sheet {
+            background: white;
+            border-radius: 20px 20px 0 0;
+            padding: 28px 24px 40px;
+            width: 100%;
+            max-width: 600px;
+        }
+
+        .picker-sheet h5 { font-size: 1.3rem; font-weight: 800; margin-bottom: 20px; }
+
+        .picker-option {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            font-weight: 600;
+            transition: border-color 0.15s, background 0.15s;
+        }
+        .picker-option:hover { border-color: #198754; background: #f8fff9; }
+        .picker-option .icon { font-size: 2rem; }
+
+        .picker-cancel {
+            width: 100%;
+            padding: 14px;
+            border: 2px solid #dee2e6;
+            border-radius: 12px;
+            background: white;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 4px;
+        }
+    </style>
 </head>
 <body class="bg-light">
 
 <nav class="navbar navbar-dark bg-dark shadow-sm">
     <div class="container">
-        <a class="navbar-brand fw-bold" href="/">FysioFit Buddy Portaal</a>
-        <a href="/buddy" class="btn btn-outline-info btn-sm fw-bold">Volg Live Feedback (Pi) →</a>
+        <a class="navbar-brand fw-bold" href="/">FysioFit Buddy</a>
+        <div class="d-flex align-items-center gap-3">
+            <div class="streak-pill">🔥 {{ streak.streak }}</div>
+            <a href="/profiel" class="btn btn-outline-light btn-sm fw-bold" style="font-size:1rem; padding: 8px 16px;">👤 {{ user.name }}</a>
+        </div>
     </div>
 </nav>
 
-<div class="container mt-4">
+<!-- carousel en kalender voor oefeningen inplannen -->
+<div class="carousel-outer mt-3">
+    <div class="carousel-track" id="carouselTrack">
 
-    <div id="banner-offline" class="alert alert-secondary d-flex align-items-center justify-content-between">
-        <span class="fw-bold">FysioFit Buddy is offline</span>
-        <button onclick="setSystemOnline()" class="btn btn-dark fw-bold">Zet online</button>
-    </div>
-
-    <div id="banner-starting" class="alert alert-warning d-none">
-        <div class="d-flex align-items-center justify-content-between mb-2">
-            <span class="fw-bold">Camera wordt opgestart...</span>
-            <span id="startup-countdown" class="fw-bold">8</span>
-        </div>
-        <div class="progress" style="height: 8px;">
-            <div id="startup-bar" class="progress-bar bg-warning progress-bar-striped progress-bar-animated" style="width: 0%;"></div>
-        </div>
-    </div>
-
-    <div id="banner-online" class="alert alert-success d-none fw-bold">
-        FysioFit Buddy is online en klaar voor gebruik.
-    </div>
-
-    <div class="row mb-4 text-center">
-        <div class="col">
-            <h1 class="display-6 fw-bold">Selecteer een Oefening</h1>
-            <p class="text-muted">Kies een oefening om direct te starten met de live feedback.</p>
-        </div>
-    </div>
-
-    <div class="row g-4 justify-content-center mb-5">
-        <div class="col-md-4">
-            <div class="card h-100 shadow-sm border-0">
-                <div class="card-body text-center d-flex flex-column justify-content-between">
-                    <div>
-                        <h5 class="card-title fw-bold">Appels plukken</h5>
-                        <p class="card-text text-muted">Beweeg je armen volledig omhoog en omlaag om virtuele appels te verzamelen.<br><strong>Doel: 15 herhalingen</strong></p>
+        <!-- Home portaal waar oefeningen worden weergegeven -->
+        <div class="carousel-slide">
+            <div class="container">
+                <p class="text-muted mb-3" style="font-size:1.5rem; text-align: center;">Tik op een oefening om te starten:</p>
+                <div class="row g-3">
+                    <div class="col-6">
+                        <div class="card shadow-sm exercise-card h-100" onclick="controlExercise(1)">
+                            <div class="card-body text-center d-flex flex-column align-items-center justify-content-center">
+                                <div class="exercise-icon mb-3">🍎</div>
+                                <h5 class="card-title fw-bold mb-2">Appels plukken</h5>
+                                <p class="card-text text-muted">Armen omhoog en omlaag.<br><strong>15 herhalingen</strong></p>
+                            </div>
+                        </div>
                     </div>
-                    <div class="mt-4">
-                        <button onclick="controlExercise(1, 1)" class="btn btn-success w-100 fw-bold exercise-btn" disabled>Start Oefening</button>
+                    <div class="col-6">
+                        <div class="card shadow-sm exercise-card h-100" onclick="controlExercise(2)" ontouchstart="">
+                            <div class="card-body text-center d-flex flex-column align-items-center justify-content-center">
+                                <div class="exercise-icon mb-3">🧹</div>
+                                <h5 class="card-title fw-bold mb-2">Doekje vegen</h5>
+                                <p class="card-text text-muted">Grote vegen over de tafel.<br><strong>20 herhalingen</strong></p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-4">
-            <div class="card h-100 shadow-sm border-0">
-                <div class="card-body text-center d-flex flex-column justify-content-between">
-                    <div>
-                        <h5 class="card-title fw-bold">Doekje vegen</h5>
-                        <p class="card-text text-muted">Maak grote vegen van voor naar achter over de tafel, alsof je aan het poetsen bent.<br><strong>Doel: 20 herhalingen</strong></p>
-                    </div>
-                    <div class="mt-4">
-                        <button onclick="controlExercise(2, 1)" class="btn btn-success w-100 fw-bold exercise-btn" disabled>Start Oefening</button>
+        <!-- kalender voor oefeningen inplannen -->
+        <div class="carousel-slide">
+            <div class="container">
+                <div class="card shadow-sm border-0">
+                    <div class="card-body p-4">
+
+                        <div class="month-nav">
+                            <button onclick="changeMonth(-1)">‹</button>
+                            <span class="month-title" id="monthTitle"></span>
+                            <button onclick="changeMonth(1)">›</button>
+                        </div>
+
+                        <div class="cal-header">
+                            <div>Ma</div><div>Di</div><div>Wo</div>
+                            <div>Do</div><div>Vr</div><div>Za</div><div>Zo</div>
+                        </div>
+
+                        <div class="cal-grid" id="calGrid"></div>
+
+                        <p class="text-muted mt-3 mb-0" style="font-size:1.5rem; text-align: center;">
+                            Tik op een dag om een oefening in te plannen. Geplande dagen zijn groen gemarkeerd.
+                        </p>
                     </div>
                 </div>
             </div>
         </div>
+
     </div>
 
-    <div class="row mb-5">
-        <div class="col text-center">
-            <button onclick="setSystemOffline()" class="btn btn-danger btn-lg px-5 py-3 fw-bold shadow-sm" disabled id="stop-btn">
-                ■ Stop & camera uit
-            </button>
-            <div id="live-indicator" class="mt-3 text-muted fw-bold">Status: Standby</div>
+    <!-- puntjes / indicators van de carousel -->
+    <div class="carousel-dots">
+        <div class="dot active" onclick="goToSlide(0)"></div>
+        <div class="dot" onclick="goToSlide(1)"></div>
+    </div>
+</div>
+
+<!-- overlay wanneer je oefening wilt inplannen in kalender, keuze uit beschikbare oefeningen -->
+<div class="picker-overlay" id="pickerOverlay">
+    <div class="picker-sheet">
+        <h5 id="pickerTitle">Oefening inplannen</h5>
+        <div class="picker-option" onclick="planExercise(1)">
+            <span class="icon"></span>
+            <span>Appels plukken — 15 herhalingen</span>
         </div>
+        <div class="picker-option" onclick="planExercise(2)">
+            <span class="icon"></span>
+            <span>Doekje vegen — 20 herhalingen</span>
+        </div>
+        <button class="picker-cancel" onclick="closePicker()">Annuleren</button>
     </div>
-
 </div>
 
 <script>
-    const STARTUP_DURATION = 8000;
+    // ── CAROUSEL ──────────────────────────────
+    let currentSlide = 0;
+    const totalSlides = 2;
+    const track = document.getElementById('carouselTrack');
+    const dots = document.querySelectorAll('.dot');
 
-    function setUIDisabled(disabled) {
-        document.querySelectorAll('.exercise-btn, #stop-btn').forEach(btn => {
-            btn.disabled = disabled;
-        });
+    function goToSlide(index) {
+        currentSlide = Math.max(0, Math.min(index, totalSlides - 1));
+        track.style.transform = `translateX(-${currentSlide * 100}%)`;
+        dots.forEach((d, i) => d.classList.toggle('active', i === currentSlide));
     }
 
-    async function setSystemOnline() {
-        await fetch('/set_system', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ online: true })
+    let touchStartX = 0, touchStartY = 0, isDragging = false;
+    track.addEventListener('touchstart', e => {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+        isDragging = true;
+    }, { passive: true });
+    track.addEventListener('touchend', e => {
+        if (!isDragging) return;
+        isDragging = false;
+        const dx = e.changedTouches[0].clientX - touchStartX;
+        const dy = e.changedTouches[0].clientY - touchStartY;
+        if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 40) {
+            goToSlide(dx < 0 ? currentSlide + 1 : currentSlide - 1);
+        }
+    }, { passive: true });
+
+    // ── OEFENING STARTEN ──────────────────────
+    async function controlExercise(id) {
+        const response = await fetch('/control_exercise', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({oefening_id: id, actief: 1})
         });
-
-        document.getElementById('banner-offline').classList.add('d-none');
-        document.getElementById('banner-starting').classList.remove('d-none');
-        setUIDisabled(true);
-
-        const bar = document.getElementById('startup-bar');
-        const countdown = document.getElementById('startup-countdown');
-        const startTime = Date.now();
-
-        const timer = setInterval(() => {
-            const elapsed = Date.now() - startTime;
-            const pct = Math.min((elapsed / STARTUP_DURATION) * 100, 100);
-            const remaining = Math.ceil((STARTUP_DURATION - elapsed) / 1000);
-            bar.style.width = pct + '%';
-            countdown.textContent = Math.max(remaining, 0);
-
-            if (elapsed >= STARTUP_DURATION) {
-                clearInterval(timer);
-                document.getElementById('banner-starting').classList.add('d-none');
-                document.getElementById('banner-online').classList.remove('d-none');
-                setUIDisabled(false);
-            }
-        }, 100);
-    }
-
-    async function setSystemOffline() {
-        await fetch('/set_system', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ online: false })
-        });
-
-        await fetch('/control_exercise', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ oefening_id: 0, actief: 0 })
-        });
-
-        document.getElementById('banner-online').classList.add('d-none');
-        document.getElementById('banner-starting').classList.add('d-none');
-        document.getElementById('banner-offline').classList.remove('d-none');
-        setUIDisabled(true);
-    }
-
-    async function controlExercise(id, status) {
-        try {
-            const response = await fetch('/control_exercise', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ oefening_id: id, actief: status })
-            });
-            const data = await response.json();
-
-            if (data.status === 'success' && data.current_task.actief === 1) {
-                const calRes = await fetch('/calibration_status');
-                const calData = await calRes.json();
-                if (calData.status === 'calibrated') {
-                    window.location.href = '/buddy';
-                } else {
-                    window.location.href = '/calibreer';
-                }
-            }
-        } catch (error) {
-            console.error('Fout bij doorsturen:', error);
+        const data = await response.json();
+        if (data.status === 'success' && data.current_task.actief === 1) {
+            const calRes = await fetch('/calibration_status');
+            const calData = await calRes.json();
+            window.location.href = calData.status === 'calibrated' ? '/buddy' : '/calibreer';
         }
     }
+
+    // ── KALENDER ──────────────────────────────
+    const MAANDEN = ['Januari','Februari','Maart','April','Mei','Juni',
+                     'Juli','Augustus','September','Oktober','November','December'];
+
+    let calYear, calMonth;
+    let planned = JSON.parse(localStorage.getItem('planned_days') || '{}');
+    let pickerDate = null;
+
+    function initCalendar() {
+        const now = new Date();
+        calYear = now.getFullYear();
+        calMonth = now.getMonth();
+        renderCalendar();
+    }
+
+    function changeMonth(dir) {
+        calMonth += dir;
+        if (calMonth > 11) { calMonth = 0; calYear++; }
+        if (calMonth < 0)  { calMonth = 11; calYear--; }
+        renderCalendar();
+    }
+
+    function renderCalendar() {
+        document.getElementById('monthTitle').textContent = `${MAANDEN[calMonth]} ${calYear}`;
+        const grid = document.getElementById('calGrid');
+        grid.innerHTML = '';
+
+        const today = new Date();
+        const firstDay = new Date(calYear, calMonth, 1);
+        // maandag-gebaseerde week (0 = maandag, 1 = dinsdag etc.)
+        let startOffset = (firstDay.getDay() + 6) % 7;
+        const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+
+        // lege cellen voor de eerste week
+        for (let i = 0; i < startOffset; i++) {
+            const empty = document.createElement('div');
+            empty.className = 'cal-day empty';
+            grid.appendChild(empty);
+        }
+
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dateKey = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            const thisDate = new Date(calYear, calMonth, d);
+            const isToday = thisDate.toDateString() === today.toDateString();
+            const isPast  = thisDate < new Date(today.getFullYear(), today.getMonth(), today.getDate());
+            const isPlanned = !!planned[dateKey];
+
+            const cell = document.createElement('div');
+            cell.className = 'cal-day';
+            if (isToday)   cell.classList.add('today');
+            if (isPlanned && isPast) cell.classList.add('past-done');
+            else if (isPlanned)      cell.classList.add('planned');
+
+            cell.innerHTML = `<span class="cal-day-num">${d}</span>`;
+            if (isPlanned && !isPast) {
+                const dot = document.createElement('div');
+                dot.className = 'cal-dot';
+                cell.appendChild(dot);
+            }
+
+            if (!isPast || isToday) {
+                cell.onclick = () => openPicker(dateKey, d);
+            }
+
+            grid.appendChild(cell);
+        }
+    }
+
+    function openPicker(dateKey, day) {
+        pickerDate = dateKey;
+        const alreadyPlanned = !!planned[dateKey];
+        document.getElementById('pickerTitle').textContent = alreadyPlanned
+            ? `${day} ${MAANDEN[calMonth]} — wijzigen of verwijderen`
+            : `${day} ${MAANDEN[calMonth]} — oefening inplannen`;
+
+        // zichtbare mogelijkheid om geplande oefening te kunnen verwijderen
+        const sheet = document.querySelector('.picker-sheet');
+        const existing = sheet.querySelector('.picker-remove');
+        if (existing) existing.remove();
+
+        if (alreadyPlanned) {
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'picker-cancel picker-remove';
+            removeBtn.style.cssText = 'color:#dc3545; border-color:#dc3545; margin-top:8px;';
+            removeBtn.textContent = 'Verwijder planning';
+            removeBtn.onclick = removePlanning;
+            sheet.appendChild(removeBtn);
+        }
+
+        document.getElementById('pickerOverlay').classList.add('open');
+    }
+
+    function closePicker() {
+        document.getElementById('pickerOverlay').classList.remove('open');
+        // verwijder de verwijder-knop als die er is
+        const existing = document.querySelector('.picker-remove');
+        if (existing) existing.remove();
+        pickerDate = null;
+    }
+
+    function planExercise(id) {
+        if (!pickerDate) return;
+        planned[pickerDate] = id;
+        localStorage.setItem('planned_days', JSON.stringify(planned));
+        closePicker();
+        renderCalendar();
+    }
+
+    function removePlanning() {
+        if (!pickerDate) return;
+        delete planned[pickerDate];
+        localStorage.setItem('planned_days', JSON.stringify(planned));
+        closePicker();
+        renderCalendar();
+    }
+
+    // picker sluiten als je buiten het sheet klikt
+    document.getElementById('pickerOverlay').addEventListener('click', function(e) {
+        if (e.target === this) closePicker();
+    });
+
+    initCalendar();
 </script>
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

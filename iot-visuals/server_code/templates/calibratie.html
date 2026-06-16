@@ -40,9 +40,10 @@
                         </div>
                     </div>
 
-                    <button id="cal-btn" onclick="startCalibration()" class="btn btn-outline-warning w-100 fw-bold">
+                    <button id="cal-btn" onclick="this.classList.remove('btn-outline-warning'); this.classList.add('btn-warning', 'text-dark'); this.style.backgroundColor='#ffdb66'; this.style.borderColor='#ffdb66'; this.innerText='Calibreren...'; startCalibration();" class="btn btn-outline-warning w-100 fw-bold">
                         Start calibratie
                     </button>
+
 
                     <div id="cal-success" class="alert alert-success mt-3 d-none mb-0">
                         Calibratie geslaagd! Je wordt doorgestuurd...
