@@ -28,6 +28,7 @@ while True:
         if not data or not status or not exercise_name:
             raise ValueError(f"Ongeldige server response! (Geen leuke error)")
 
+        SCRIPT = f"/home/fysiofit/motion_{exercise_id}.py"
 
     except Exception as e:
         status = "stop"
