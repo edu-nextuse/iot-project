@@ -2,7 +2,7 @@
 <html lang="nl">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=1024">
     <title>FysioFit - Portaal</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
@@ -22,7 +22,6 @@
             white-space: nowrap;
         }
 
-        /* Carousel */
         .carousel-outer {
             overflow: hidden;
             width: 100%;
@@ -55,7 +54,6 @@
         }
         .dot.active { background: #212529; }
 
-        /* het kunnen aanklikken van de oefeningen */
         .exercise-card {
             cursor: pointer;
             border: 2.5px solid transparent;
@@ -64,21 +62,16 @@
             user-select: none;
             -webkit-tap-highlight-color: transparent;
         }
-        .exercise-card:active {
-            transform: scale(0.97);
-        }
+        .exercise-card:active { transform: scale(0.97); }
         .exercise-card:hover {
             border-color: #198754;
             box-shadow: 0 4px 20px rgba(25,135,84,0.15);
         }
-        .exercise-card .card-body {
-            padding: 2rem 1.5rem;
-        }
+        .exercise-card .card-body { padding: 2rem 1.5rem; }
         .exercise-icon { font-size: 4rem; }
         .card-title   { font-size: 1.5rem; }
         .card-text    { font-size: 1.1rem; }
 
-        /* kalender voor oefeningen kunnen inplannen */
         .cal-header {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
@@ -138,10 +131,8 @@
             font-weight: 700;
         }
         .month-nav button:hover { border-color: #212529; }
-
         .month-title { font-size: 1.4rem; font-weight: 800; }
 
-        /* pop-up wanneer je oefeningen wilt inplannen in kalender */
         .picker-overlay {
             display: none;
             position: fixed;
@@ -204,11 +195,9 @@
     </div>
 </nav>
 
-<!-- carousel en kalender voor oefeningen inplannen -->
 <div class="carousel-outer mt-3">
     <div class="carousel-track" id="carouselTrack">
 
-        <!-- Home portaal waar oefeningen worden weergegeven -->
         <div class="carousel-slide">
             <div class="container">
                 <p class="text-muted mb-3" style="font-size:1.5rem; text-align: center;">Tik op een oefening om te starten:</p>
@@ -235,7 +224,6 @@
             </div>
         </div>
 
-        <!-- kalender voor oefeningen inplannen -->
         <div class="carousel-slide">
             <div class="container">
                 <div class="card shadow-sm border-0">
@@ -264,14 +252,12 @@
 
     </div>
 
-    <!-- puntjes / indicators van de carousel -->
     <div class="carousel-dots">
         <div class="dot active" onclick="goToSlide(0)"></div>
         <div class="dot" onclick="goToSlide(1)"></div>
     </div>
 </div>
 
-<!-- overlay wanneer je oefening wilt inplannen in kalender, keuze uit beschikbare oefeningen -->
 <div class="picker-overlay" id="pickerOverlay">
     <div class="picker-sheet">
         <h5 id="pickerTitle">Oefening inplannen</h5>
@@ -288,7 +274,6 @@
 </div>
 
 <script>
-    // ── CAROUSEL ──────────────────────────────
     let currentSlide = 0;
     const totalSlides = 2;
     const track = document.getElementById('carouselTrack');
@@ -316,7 +301,6 @@
         }
     }, { passive: true });
 
-    // ── OEFENING STARTEN ──────────────────────
     async function controlExercise(id) {
         const response = await fetch('/control_exercise', {
             method: 'POST', headers: {'Content-Type':'application/json'},
@@ -330,7 +314,6 @@
         }
     }
 
-    // ── KALENDER ──────────────────────────────
     const MAANDEN = ['Januari','Februari','Maart','April','Mei','Juni',
                      'Juli','Augustus','September','Oktober','November','December'];
 
@@ -359,11 +342,9 @@
 
         const today = new Date();
         const firstDay = new Date(calYear, calMonth, 1);
-        // maandag-gebaseerde week (0 = maandag, 1 = dinsdag etc.)
         let startOffset = (firstDay.getDay() + 6) % 7;
         const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
 
-        // lege cellen voor de eerste week
         for (let i = 0; i < startOffset; i++) {
             const empty = document.createElement('div');
             empty.className = 'cal-day empty';
@@ -405,7 +386,6 @@
             ? `${day} ${MAANDEN[calMonth]} — wijzigen of verwijderen`
             : `${day} ${MAANDEN[calMonth]} — oefening inplannen`;
 
-        // zichtbare mogelijkheid om geplande oefening te kunnen verwijderen
         const sheet = document.querySelector('.picker-sheet');
         const existing = sheet.querySelector('.picker-remove');
         if (existing) existing.remove();
@@ -424,7 +404,6 @@
 
     function closePicker() {
         document.getElementById('pickerOverlay').classList.remove('open');
-        // verwijder de verwijder-knop als die er is
         const existing = document.querySelector('.picker-remove');
         if (existing) existing.remove();
         pickerDate = null;
@@ -446,7 +425,6 @@
         renderCalendar();
     }
 
-    // picker sluiten als je buiten het sheet klikt
     document.getElementById('pickerOverlay').addEventListener('click', function(e) {
         if (e.target === this) closePicker();
     });

@@ -11,6 +11,46 @@ app.secret_key = os.urandom(24)
 
 DB_PATH = "fysiofit.db"
 
+
+# oefening status en configuratie
+
+current_task = {"oefening_id": 0, "actief": 0}
+
+OEFENINGEN_CONFIG = {
+    1: {"naam": "Appels plukken", "doel": 15, "box": [0, 0, 800, 100]},
+    2: {"naam": "Doekje vegen", "doel": 20, "box": [600, 0, 200, 600]},
+}
+
+# Ritme instellingen (Blijven globaal)
+MIN_FREQ = 1.0
+MAX_FREQ = 5.0
+TIMEOUT_LIMIT = 20.0
+CALIBRATION_DURATION = 5.0
+
+
+# State per IP opslaan
+sessions = {}
+
+def get_session():
+    ip = request.remote_addr
+    if ip not in sessions:
+        sessions[ip] = {
+            "current_task": {"oefening_id": 0, "actief": 0},
+            "calibration_active": False,
+            "system_online": False,
+            "is_calibrated": False,
+            "motion_data": "stop",
+            "last_state": None,
+            "last_change_time": None,
+            "last_received_time": None,
+            "last_status": "unknown",
+            "rep_counter": 0,
+            "has_hit_top": False,
+            "latest_keypoints": {},
+            "last_error": None,
+        }
+    return sessions[ip]
+
 # database initialisatie en verbinding
 
 def get_db():
@@ -132,20 +172,6 @@ def log_exercise_completion(user_id, exercise_id, exercise_name, reps_done, reps
     conn.commit()
     conn.close()
 
-# oefening status en configuratie
-
-current_task = {"oefening_id": 0, "actief": 0}
-
-OEFENINGEN_CONFIG = {
-    1: {"naam": "Appels plukken", "doel": 15},
-    2: {"naam": "Doekje vegen", "doel": 20}
-}
-
-# Ritme instellingen (Blijven globaal)
-MIN_FREQ = 1.0
-MAX_FREQ = 5.0
-TIMEOUT_LIMIT = 20.0
-CALIBRATION_DURATION = 5.0
 
 # app routes
 
@@ -203,29 +229,6 @@ def logout():
     return redirect(url_for("login"))
 
 # main portal en profiel routes
-# State per IP opslaan
-sessions = {}
-
-def get_session():
-    ip = request.remote_addr
-    if ip not in sessions:
-        sessions[ip] = {
-            "current_task": {"oefening_id": 0, "actief": 0},
-            "calibration_active": False,
-            "system_online": False,
-            "is_calibrated": False,
-            "motion_data": "stop",
-            "last_state": None,
-            "last_change_time": None,
-            "last_received_time": None,
-            "last_status": "unknown",
-            "rep_counter": 0,
-            "has_hit_top": False,
-            "latest_keypoints": {}
-        }
-    return sessions[ip]
-
-
 @app.route("/")
 @login_required
 def portal():
@@ -333,10 +336,12 @@ def update_status():
                 s["last_change_time"] = None
                 print("[SYSTEM] Calibratie voltooid!")
                 return jsonify({"status": "calibrating", "calibrated": True})
+            else:
+                elapsed = time.time() - s["last_change_time"]
+                progress = min(elapsed / CALIBRATION_DURATION * 100, 100)
+                return jsonify({"status": "calibrating", "calibrated": False, "progress": progress})
 
-            elapsed = time.time() - s["last_change_time"]
-            progress = min(elapsed / CALIBRATION_DURATION * 100, 100)
-            return jsonify({"status": "calibrating", "calibrated": False, "progress": progress})
+            return jsonify({"status": "calibrating", "calibrated": False, "progress": 0})
         else:
             if s["last_change_time"] is not None:
                 print("[CALIBRATIE] Polsen uit beeld, timer gereset")
@@ -397,7 +402,6 @@ def update_status():
             s["last_status"] = "no_movement"
 
     return jsonify({"status": "processed", "counter": s["rep_counter"], "current_feedback": s["last_status"]})
-
 @app.route("/current")
 def current():
     s = get_session()
@@ -465,7 +469,11 @@ def reset_calibration():
 @app.route("/get_task", methods=["GET"])
 def get_task():
     s = get_session()
-    return jsonify(s["current_task"])
+    task = s["current_task"].copy()
+    oef_id = task["oefening_id"]
+    if oef_id in OEFENINGEN_CONFIG:
+        task["box"] = OEFENINGEN_CONFIG[oef_id]["box"]
+    return jsonify(task)
 
 
 @app.route("/api/streak")
@@ -473,6 +481,23 @@ def get_task():
 def api_streak():
     user_id = session["user_id"]
     return jsonify(get_streak_data(user_id))
+
+@app.route("/error", methods=["POST"])
+def receive_error():
+    s = get_session()
+    data = request.json
+    if data and "error" in data:
+        s["last_error"] = {
+            "message": data["error"],
+            "time": time.time()
+        }
+        print(f"[PI ERROR] {data['error']}")
+    return jsonify({"status": "ok"})
+
+@app.route("/error", methods=["GET"])
+def get_error():
+    s = get_session()
+    return jsonify(s["last_error"] or {})
 
 if __name__ == "__main__":
     init_db()
