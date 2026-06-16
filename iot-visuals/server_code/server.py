@@ -294,10 +294,6 @@ def start_calibration():
     return jsonify({"status": "started"})
 
 
-@app.route("/calibreer")
-def calibreer():
-    return render_template("calibratie.html")
-
 
 @app.route("/update_status", methods=["POST"])
 def update_status():
@@ -376,7 +372,7 @@ def update_status():
                             log_exercise_completion(
                                 session["user_id"], oef_id,
                                 OEFENINGEN_CONFIG[oef_id]["naam"],
-                                rep_counter, goal, True
+                                s["rep_counter"], OEFENINGEN_CONFIG[oef_id]["doel"], True
                             )
 
         print(s["last_state"], current_state)
@@ -444,13 +440,6 @@ def calibration_status():
     progress = min(elapsed / CALIBRATION_DURATION * 100, 100)
     return jsonify({"status": "calibrating", "progress": progress})
 
-@app.route("/start_calibration", methods=["POST"])
-def start_calibration():
-    global calibration_active, last_change_time, is_calibrated
-    calibration_active = True
-    last_change_time = None
-    is_calibrated = False
-    return jsonify({"status": "started"})
 
 @app.route("/reset_calibration", methods=["POST"])
 def reset_calibration():
