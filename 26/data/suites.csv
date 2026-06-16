@@ -1,0 +1,7 @@
+"DESCRIPTION","DURATION IN MS","NAME","PARENT SUITE","START TIME","STATUS","STOP TIME","SUB SUITE","SUITE","TEST CLASS","TEST METHOD"
+"Controleert of de status 'too_fast' wordt als de patiënt binnen 2 seconden beweegt.","0","Test Te Snelle Beweging","tests","2026-06-16","broken","2026-06-16","TestFysioFitLogic","test_server","",""
+"Controleert of de server herkent wanneer de patiënt stopt met bewegen (geen state-wissel).","0","Test Patiënt Staat Stil (Inactief)","tests","2026-06-16","broken","2026-06-16","TestFysioFitLogic","test_server","",""
+"Controleert of het dashboard in de 'error_piconnect' schiet als de Pi langer dan 10 seconden helemaal niks stuurt.","0","Test Pi 5 Verbindingsfout (Timeout)","tests","2026-06-16","broken","2026-06-16","TestFysioFitLogic","test_server","",""
+"Controleert of de status 'too_slow' wordt als een beweging langer dan 5 seconden duurt.","0","Test Te Langzame Beweging","tests","2026-06-16","broken","2026-06-16","TestFysioFitLogic","test_server","",""
+"Controleert of de status 'finished' wordt zodra het doel (bijv. 15 reps) is bereikt.","0","Test Oefening Voltooid (Finished)","tests","2026-06-16","broken","2026-06-16","TestFysioFitLogic","test_server","",""
+"Controleert of een herhaling binnen de 2-5 seconden correct wordt geteld.","0","Test Perfect Ritmische Beweging","tests","2026-06-16","broken","2026-06-16","TestFysioFitLogic","test_server","",""
