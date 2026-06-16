@@ -24,7 +24,7 @@ def client():
         sessions.clear()
 
 def start_oefening(client, oefening_id=1):
-    """Log in en start een oefening."""
+    """Log in, start een oefening en initialiseer de state."""
     client.post("/register", data={
         "name": "Test",
         "email": "test@test.nl",
@@ -36,10 +36,16 @@ def start_oefening(client, oefening_id=1):
     })
     client.post("/set_system", json={"online": True})
     client.post("/start_calibration")
+
+    # Forceer gecalibreerde staat
     s = list(sessions.values())[0]
     s["is_calibrated"] = True
     s["calibration_active"] = False
+
     client.post("/control_exercise", json={"oefening_id": oefening_id, "actief": 1})
+
+    # Stuur eerste update zodat last_state en last_change_time gezet worden
+    client.post("/update_status", json={"state": 0, "calibration_status": "not_calibrated"})
 
 def update(client, state):
     return client.post("/update_status", json={
@@ -49,6 +55,10 @@ def update(client, state):
 
 def current(client):
     return client.get("/current")
+
+def get_s():
+    """Haal de huidige sessie op."""
+    return list(sessions.values())[0]
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
 
@@ -62,10 +72,7 @@ class TestFysioFitLogic:
     @allure.description("Controleert of een herhaling binnen de 1-5 seconden correct wordt geteld.")
     def test_perfect_rep_tempo(self, client):
         start_oefening(client)
-        s = list(sessions.values())[0]
-
-        with allure.step("Stuur startpositie: 0 (handen laag)"):
-            update(client, 0)
+        s = get_s()
 
         with allure.step("Simuleer 3 seconden en stuur state 1 (handen omhoog)"):
             s["last_change_time"] -= 3.0
@@ -85,10 +92,7 @@ class TestFysioFitLogic:
     @allure.description("Controleert of de status 'too_fast' wordt als de patiënt binnen 1 seconde beweegt.")
     def test_rep_too_fast(self, client):
         start_oefening(client)
-        s = list(sessions.values())[0]
-
-        with allure.step("Stuur startpositie: 0"):
-            update(client, 0)
+        s = get_s()
 
         with allure.step("Simuleer 0.5 seconden en stuur state 1"):
             s["last_change_time"] -= 0.5
@@ -102,10 +106,7 @@ class TestFysioFitLogic:
     @allure.description("Controleert of de status 'too_slow' wordt als een beweging langer dan 5 seconden duurt.")
     def test_rep_too_slow(self, client):
         start_oefening(client)
-        s = list(sessions.values())[0]
-
-        with allure.step("Stuur startpositie: 0"):
-            update(client, 0)
+        s = get_s()
 
         with allure.step("Simuleer 5.5 seconden en wissel naar state 1"):
             s["last_change_time"] -= 5.5
@@ -119,10 +120,7 @@ class TestFysioFitLogic:
     @allure.description("Een beweging van exact 1.0 seconde valt op de grens en is 'ok' (niet < MIN_FREQ).")
     def test_rep_exact_min_freq(self, client):
         start_oefening(client)
-        s = list(sessions.values())[0]
-
-        with allure.step("Stuur startpositie: 0"):
-            update(client, 0)
+        s = get_s()
 
         with allure.step("Simuleer exact 1.0 seconde"):
             s["last_change_time"] -= 1.0
@@ -133,13 +131,10 @@ class TestFysioFitLogic:
 
     @allure.story("Tempo Validatie")
     @allure.title("Grenswaarde: Beweging Precies op MAX_FREQ (5.0s)")
-    @allure.description("Een beweging van exact 5.0 seconde valt op de grens en is 'too_slow' (niet > MAX_FREQ).")
+    @allure.description("Een beweging van exact 5.0 seconde valt op de grens en is 'too_slow'.")
     def test_rep_exact_max_freq(self, client):
         start_oefening(client)
-        s = list(sessions.values())[0]
-
-        with allure.step("Stuur startpositie: 0"):
-            update(client, 0)
+        s = get_s()
 
         with allure.step("Simuleer exact 5.0 seconden"):
             s["last_change_time"] -= 5.0
@@ -153,10 +148,7 @@ class TestFysioFitLogic:
     @allure.description("Een beweging van 1.1 seconde moet als 'ok' worden beschouwd.")
     def test_rep_just_above_min_freq(self, client):
         start_oefening(client)
-        s = list(sessions.values())[0]
-
-        with allure.step("Stuur startpositie: 0"):
-            update(client, 0)
+        s = get_s()
 
         with allure.step("Simuleer 1.1 seconden"):
             s["last_change_time"] -= 1.1
@@ -172,13 +164,12 @@ class TestFysioFitLogic:
     @allure.description("Een rep mag alleen tellen als state 1 (omhoog) bereikt is geweest.")
     def test_rep_zonder_top(self, client):
         start_oefening(client)
-        s = list(sessions.values())[0]
+        s = get_s()
 
-        with allure.step("Stuur 0, dan direct weer 0 zonder 1 tussendoor"):
-            update(client, 0)
+        with allure.step("Stuur state 1 maar forceer has_hit_top False"):
             s["last_change_time"] -= 2.1
             update(client, 1)
-            s["has_hit_top"] = False  # forceer geen top bereikt
+            s["has_hit_top"] = False
             s["last_change_time"] -= 2.1
             res = update(client, 0)
 
@@ -190,11 +181,10 @@ class TestFysioFitLogic:
     @allure.description("Na het bereiken van het doel mogen extra reps de teller niet verhogen.")
     def test_rep_na_finished(self, client):
         start_oefening(client, oefening_id=1)
-        s = list(sessions.values())[0]
+        s = get_s()
 
         with allure.step("Voltooi 15 reps"):
             for _ in range(15):
-                update(client, 0)
                 s["last_change_time"] -= 2.1
                 update(client, 1)
                 s["has_hit_top"] = True
@@ -202,6 +192,7 @@ class TestFysioFitLogic:
                 update(client, 0)
 
         with allure.step("Probeer nog een extra rep"):
+            s["last_change_time"] -= 2.1
             update(client, 1)
             s["last_change_time"] -= 2.1
             update(client, 0)
@@ -217,12 +208,11 @@ class TestFysioFitLogic:
     @allure.description("Controleert of de status 'finished' wordt zodra het doel van 15 reps bereikt is.")
     def test_exercise_finished_flow(self, client):
         start_oefening(client, oefening_id=1)
-        s = list(sessions.values())[0]
+        s = get_s()
 
         with allure.step("Simuleer 15 volledige herhalingen op goed tempo"):
             final_res = None
             for _ in range(15):
-                update(client, 0)
                 s["last_change_time"] -= 2.1
                 update(client, 1)
                 s["has_hit_top"] = True
@@ -240,12 +230,11 @@ class TestFysioFitLogic:
     @allure.description("Controleert of de status 'finished' wordt bij 20 reps voor oefening 2.")
     def test_exercise_2_finished_flow(self, client):
         start_oefening(client, oefening_id=2)
-        s = list(sessions.values())[0]
+        s = get_s()
 
         with allure.step("Simuleer 20 volledige herhalingen op goed tempo"):
             final_res = None
             for _ in range(20):
-                update(client, 0)
                 s["last_change_time"] -= 2.1
                 update(client, 1)
                 s["has_hit_top"] = True
@@ -265,7 +254,7 @@ class TestFysioFitLogic:
     @allure.description("States mogen niet verwerkt worden als actief=0.")
     def test_update_genegeerd_bij_inactief(self, client):
         start_oefening(client)
-        s = list(sessions.values())[0]
+        s = get_s()
         s["current_task"]["actief"] = 0
 
         with allure.step("Stuur state update terwijl oefening niet actief is"):
@@ -280,7 +269,7 @@ class TestFysioFitLogic:
     def test_current_zonder_state(self, client):
         start_oefening(client)
 
-        with allure.step("Vraag /current op zonder update gestuurd te hebben"):
+        with allure.step("Vraag /current op"):
             res = current(client)
 
         with allure.step("Verifieer dat de response geldig is"):
@@ -295,10 +284,7 @@ class TestFysioFitLogic:
     @allure.description("Controleert of de server herkent wanneer de patiënt stopt met bewegen.")
     def test_patient_stuck(self, client):
         start_oefening(client)
-        s = list(sessions.values())[0]
-
-        with allure.step("Stuur initiële state: 0"):
-            update(client, 0)
+        s = get_s()
 
         with allure.step("Simuleer 5.5 seconden stilstand"):
             s["last_change_time"] -= 5.5
@@ -316,14 +302,13 @@ class TestFysioFitLogic:
     @allure.description("Controleert of het dashboard 'error_piconnect' toont als de Pi langer dan 20 seconden niks stuurt.")
     def test_pi_disconnect_timeout(self, client):
         start_oefening(client)
-        s = list(sessions.values())[0]
+        s = get_s()
 
         with allure.step("Stuur data zodat last_received_time gezet wordt"):
-            update(client, 0)
             s["last_change_time"] -= 2.1
             update(client, 1)
 
-        with allure.step("Simuleer 20.5 seconden geen verbinding (TIMEOUT_LIMIT = 20.0)"):
+        with allure.step("Simuleer 20.5 seconden geen verbinding"):
             s["last_received_time"] = time.time() - 20.5
 
         with allure.step("Controleer of het dashboard de error status toont"):
