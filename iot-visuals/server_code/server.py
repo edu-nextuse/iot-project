@@ -1,8 +1,10 @@
 from flask import Flask, render_template, request, jsonify, session
 import time
+import dotenv  # Zorg ervoor dat deze import correct is en dat env.py in dezelfde directory staat 
+dotenv.load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = "jouw_geheime_sleutel_hier"
+app.secret_key = dotenv.get("secret_key")  # Gebruik de secret key uit .env
 
 # Mapping van ID naar naam en doelstelling (Blijft globaal want dit verandert niet)
 OEFENINGEN_CONFIG = {
