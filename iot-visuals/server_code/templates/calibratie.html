@@ -35,7 +35,7 @@
 
 <nav class="navbar navbar-dark bg-dark py-1 px-3 d-flex justify-content-between align-items-center" style="height:44px;">
     <span class="navbar-brand fw-bold mb-0" style="font-size:15px;">FysioFit Buddy</span>
-    <a href="/" class="btn btn-outline-light btn-sm py-0" style="font-size:12px;">← Portaal</a>
+    <a onclick="cancelCalibration()" class="btn btn-outline-light btn-sm py-0" style="font-size:12px; cursor:pointer;">← Portaal</a>
 </nav>
 
 <div style="height: calc(100vh - 44px); padding: 10px 16px; box-sizing: border-box; display: flex; flex-direction: column;">
@@ -288,6 +288,18 @@ async function checkInitialState() {
         const data = await res.json();
         if (data.status === 'calibrated') window.location.href = '/buddy';
     } catch (e) {}
+}
+
+async function cancelCalibration() {
+    try {
+        await fetch('/reset_calibration', { method: 'POST' });
+        await fetch('/set_system', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ online: false })
+        });
+    } catch (e) {}
+    window.location.href = '/';
 }
 
 checkInitialState();
