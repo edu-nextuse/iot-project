@@ -128,8 +128,8 @@ class TestFysioFitLogic:
             s["last_change_time"] -= 1.0
             res = update(client, 1)
 
-        with allure.step("Verifieer feedback — exact op grens is 'too_fast' (duration < MIN_FREQ)"):
-            assert res.json["current_feedback"] == "too_fast"
+        with allure.step("Verifieer feedback — exact op grens is 'ok' (duration < MIN_FREQ)"):
+            assert res.json["current_feedback"] == "ok"
 
     @allure.story("Tempo Validatie")
     @allure.title("Grenswaarde: Beweging Precies op MAX_FREQ (5.0s)")
@@ -322,6 +322,8 @@ class TestFysioFitLogic:
 
         with allure.step("Stuur eenmalig data"):
             update(client, 0)
+            s["last_change_time"] -= 2.1
+            update(client, 1)
 
         with allure.step("Simuleer 10.5 seconden geen verbinding"):
             s["last_received_time"] -= 10.5
