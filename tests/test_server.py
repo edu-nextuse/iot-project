@@ -313,7 +313,7 @@ class TestFysioFitLogic:
 
     @allure.story("Foutafhandeling & Inactiviteit")
     @allure.title("Test Pi Verbindingsfout (Timeout)")
-    @allure.description("Controleert of het dashboard 'error_piconnect' toont als de Pi langer dan 10 seconden niks stuurt.")
+    @allure.description("Controleert of het dashboard 'error_piconnect' toont als de Pi langer dan 20 seconden niks stuurt.")
     def test_pi_disconnect_timeout(self, client):
         start_oefening(client)
         s = list(sessions.values())[0]
@@ -323,8 +323,8 @@ class TestFysioFitLogic:
             s["last_change_time"] -= 2.1
             update(client, 1)
 
-        with allure.step("Simuleer 10.5 seconden geen verbinding"):
-            s["last_received_time"] = time.time() - 10.5
+        with allure.step("Simuleer 20.5 seconden geen verbinding (TIMEOUT_LIMIT = 20.0)"):
+            s["last_received_time"] = time.time() - 20.5
 
         with allure.step("Controleer of het dashboard de error status toont"):
             res = current(client)
