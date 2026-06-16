@@ -116,7 +116,7 @@ class TestFysioFitLogic:
 
     @allure.story("Tempo Validatie")
     @allure.title("Grenswaarde: Beweging Precies op MIN_FREQ (1.0s)")
-    @allure.description("Een beweging van exact 1.0 seconde moet als 'too_fast' worden beschouwd (< MIN_FREQ).")
+    @allure.description("Een beweging van exact 1.0 seconde valt op de grens en is 'ok' (niet < MIN_FREQ).")
     def test_rep_exact_min_freq(self, client):
         start_oefening(client)
         s = list(sessions.values())[0]
@@ -128,12 +128,12 @@ class TestFysioFitLogic:
             s["last_change_time"] -= 1.0
             res = update(client, 1)
 
-        with allure.step("Verifieer feedback — exact op grens is 'ok' (duration < MIN_FREQ)"):
+        with allure.step("Verifieer feedback — exact op grens is 'ok' (duration == MIN_FREQ, niet < MIN_FREQ)"):
             assert res.json["current_feedback"] == "ok"
 
     @allure.story("Tempo Validatie")
     @allure.title("Grenswaarde: Beweging Precies op MAX_FREQ (5.0s)")
-    @allure.description("Een beweging van exact 5.0 seconde moet als 'too_slow' worden beschouwd (> MAX_FREQ).")
+    @allure.description("Een beweging van exact 5.0 seconde valt op de grens en is 'too_slow' (niet > MAX_FREQ).")
     def test_rep_exact_max_freq(self, client):
         start_oefening(client)
         s = list(sessions.values())[0]
@@ -145,7 +145,7 @@ class TestFysioFitLogic:
             s["last_change_time"] -= 5.0
             res = update(client, 1)
 
-        with allure.step("Verifieer feedback — exact op grens is 'too_slow' (duration > MAX_FREQ)"):
+        with allure.step("Verifieer feedback — exact op grens is 'too_slow' (duration == MAX_FREQ)"):
             assert res.json["current_feedback"] == "too_slow"
 
     @allure.story("Tempo Validatie")
@@ -165,7 +165,7 @@ class TestFysioFitLogic:
         with allure.step("Verifieer feedback 'ok'"):
             assert res.json["current_feedback"] == "ok"
 
-    # ── Rep telling ───────────────────────────────────────────────────────────
+    # ── Rep Telling ───────────────────────────────────────────────────────────
 
     @allure.story("Rep Telling")
     @allure.title("Rep Telt Niet Zonder has_hit_top (0→0 zonder 1)")
@@ -204,36 +204,11 @@ class TestFysioFitLogic:
         with allure.step("Probeer nog een extra rep"):
             update(client, 1)
             s["last_change_time"] -= 2.1
-            res = update(client, 0)
+            update(client, 0)
 
         with allure.step("Verifieer teller nog steeds 15 en status 'finished'"):
             assert s["rep_counter"] == 15
             assert s["last_status"] == "finished"
-
-    # ── Oefening 2 ───────────────────────────────────────────────────────────
-
-    @allure.story("Doelstellingen")
-    @allure.title("Test Oefening 2 Voltooid (Doekje vegen — 20 reps)")
-    @allure.description("Controleert of de status 'finished' wordt bij 20 reps voor oefening 2.")
-    def test_exercise_2_finished_flow(self, client):
-        start_oefening(client, oefening_id=2)
-        s = list(sessions.values())[0]
-
-        with allure.step("Simuleer 20 volledige herhalingen op goed tempo"):
-            final_res = None
-            for _ in range(20):
-                update(client, 0)
-                s["last_change_time"] -= 2.1
-                update(client, 1)
-                s["has_hit_top"] = True
-                s["last_change_time"] -= 2.1
-                final_res = update(client, 0)
-
-        with allure.step("Controleer of de status 'finished' is"):
-            assert final_res.json["current_feedback"] == "finished"
-
-        with allure.step("Controleer of de teller op 20 staat"):
-            assert final_res.json["counter"] == 20
 
     # ── Doelstellingen ────────────────────────────────────────────────────────
 
@@ -259,6 +234,29 @@ class TestFysioFitLogic:
 
         with allure.step("Controleer of de teller op 15 staat"):
             assert final_res.json["counter"] == 15
+
+    @allure.story("Doelstellingen")
+    @allure.title("Test Oefening 2 Voltooid (Doekje vegen — 20 reps)")
+    @allure.description("Controleert of de status 'finished' wordt bij 20 reps voor oefening 2.")
+    def test_exercise_2_finished_flow(self, client):
+        start_oefening(client, oefening_id=2)
+        s = list(sessions.values())[0]
+
+        with allure.step("Simuleer 20 volledige herhalingen op goed tempo"):
+            final_res = None
+            for _ in range(20):
+                update(client, 0)
+                s["last_change_time"] -= 2.1
+                update(client, 1)
+                s["has_hit_top"] = True
+                s["last_change_time"] -= 2.1
+                final_res = update(client, 0)
+
+        with allure.step("Controleer of de status 'finished' is"):
+            assert final_res.json["current_feedback"] == "finished"
+
+        with allure.step("Controleer of de teller op 20 staat"):
+            assert final_res.json["counter"] == 20
 
     # ── Sessie & State ────────────────────────────────────────────────────────
 
@@ -320,14 +318,13 @@ class TestFysioFitLogic:
         start_oefening(client)
         s = list(sessions.values())[0]
 
-        with allure.step("Stuur eenmalig data"):
+        with allure.step("Stuur data zodat last_received_time gezet wordt"):
             update(client, 0)
             s["last_change_time"] -= 2.1
             update(client, 1)
 
         with allure.step("Simuleer 10.5 seconden geen verbinding"):
-            s["last_received_time"] -= 10.5
-            s["last_change_time"] -= 10.5
+            s["last_received_time"] = time.time() - 10.5
 
         with allure.step("Controleer of het dashboard de error status toont"):
             res = current(client)
@@ -335,7 +332,7 @@ class TestFysioFitLogic:
         with allure.step("Verifieer status 'error_piconnect'"):
             assert res.json["status"] == "error_piconnect"
 
-    # ── Error endpoint ────────────────────────────────────────────────────────
+    # ── Error Endpoint ────────────────────────────────────────────────────────
 
     @allure.story("Error Endpoint")
     @allure.title("Test Pi Error Opslaan en Ophalen")
@@ -366,7 +363,7 @@ class TestFysioFitLogic:
 
     @allure.story("Error Endpoint")
     @allure.title("Test Lege Error State")
-    @allure.description("Controleert dat een lege error state {} terugkomt als er geen error is.")
+    @allure.description("Controleert dat een lege error state terugkomt als er geen error is.")
     def test_error_leeg(self, client):
         with allure.step("Haal error op zonder dat er een gestuurd is"):
             res = client.get("/error")
@@ -446,7 +443,7 @@ class TestFysioFitLogic:
             assert s["last_change_time"] is not None
 
         with allure.step("Simuleer 5.1 seconden verstreken"):
-            s["last_change_time"] -= 5.1
+            s["last_change_time"] = time.time() - 5.1
 
         with allure.step("Stuur tweede update — calibratie moet slagen"):
             res = client.post("/update_status", json={"state": 0, "calibration_status": "calibrated"})
@@ -463,7 +460,7 @@ class TestFysioFitLogic:
             client.post("/start_calibration")
             s = list(sessions.values())[0]
             client.post("/update_status", json={"state": 0, "calibration_status": "calibrated"})
-            s["last_change_time"] -= 3.0
+            s["last_change_time"] = time.time() - 3.0
 
         with allure.step("Polsen verdwijnen uit beeld"):
             res = client.post("/update_status", json={"state": 0, "calibration_status": "not_calibrated"})
