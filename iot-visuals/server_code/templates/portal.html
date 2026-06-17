@@ -224,27 +224,28 @@
             </div>
         </div>
 
+        <!-- Placeholder oefeningen slide -->
         <div class="carousel-slide">
             <div class="container">
-                <div class="card shadow-sm border-0">
-                    <div class="card-body p-4">
-
-                        <div class="month-nav">
-                            <button onclick="changeMonth(-1)">‹</button>
-                            <span class="month-title" id="monthTitle"></span>
-                            <button onclick="changeMonth(1)">›</button>
+                <p class="text-muted mb-3" style="font-size:1.5rem; text-align: center;">Tik op een oefening om te starten:</p>
+                <div class="row g-3">
+                    <div class="col-6">
+                        <div class="card shadow-sm exercise-card h-100" onclick="controlExercise(1)">
+                            <div class="card-body text-center d-flex flex-column align-items-center justify-content-center">
+                                <div class="exercise-icon mb-3">🎯</div>
+                                <h5 class="card-title fw-bold mb-2">Oefening 3</h5>
+                                <p class="card-text text-muted">Beschrijving oefening.<br><strong>Herhalingen</strong></p>
+                            </div>
                         </div>
-
-                        <div class="cal-header">
-                            <div>Ma</div><div>Di</div><div>Wo</div>
-                            <div>Do</div><div>Vr</div><div>Za</div><div>Zo</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="card shadow-sm exercise-card h-100" onclick="controlExercise(2)" ontouchstart="">
+                            <div class="card-body text-center d-flex flex-column align-items-center justify-content-center">
+                                <div class="exercise-icon mb-3">⭐</div>
+                                <h5 class="card-title fw-bold mb-2">Oefening 4</h5>
+                                <p class="card-text text-muted">Beschrijving oefening.<br><strong>Herhalingen</strong></p>
+                            </div>
                         </div>
-
-                        <div class="cal-grid" id="calGrid"></div>
-
-                        <p class="text-muted mt-3 mb-0" style="font-size:1.5rem; text-align: center;">
-                            Tik op een dag om een oefening in te plannen. Geplande dagen zijn groen gemarkeerd.
-                        </p>
                     </div>
                 </div>
             </div>
@@ -285,21 +286,7 @@
         dots.forEach((d, i) => d.classList.toggle('active', i === currentSlide));
     }
 
-    let touchStartX = 0, touchStartY = 0, isDragging = false;
-    track.addEventListener('touchstart', e => {
-        touchStartX = e.touches[0].clientX;
-        touchStartY = e.touches[0].clientY;
-        isDragging = true;
-    }, { passive: true });
-    track.addEventListener('touchend', e => {
-        if (!isDragging) return;
-        isDragging = false;
-        const dx = e.changedTouches[0].clientX - touchStartX;
-        const dy = e.changedTouches[0].clientY - touchStartY;
-        if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 40) {
-            goToSlide(dx < 0 ? currentSlide + 1 : currentSlide - 1);
-        }
-    }, { passive: true });
+
 
     async function controlExercise(id) {
         const response = await fetch('/control_exercise', {
@@ -437,7 +424,6 @@
         if (e.target === this) closePicker();
     });
 
-    initCalendar();
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>

@@ -63,7 +63,6 @@ def get_s():
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
 
-@allure.feature("FysioFit HerhalingsTeller & RitmeAnalyse")
 class TestFysioFitLogic:
 
     # ── Tempo Validatie ───────────────────────────────────────────────────────

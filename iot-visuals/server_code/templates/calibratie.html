@@ -208,6 +208,7 @@ async function startCalibration() {
     const instruction = document.getElementById('cal-instruction');
 
     btn.disabled = true;
+    btn.className = 'btn btn-secondary w-100 fw-bold';
     btn.textContent = 'Bezig met calibreren...';
     btn.classList.remove('btn-outline-warning');
     btn.classList.add('btn-warning', 'text-dark');
