@@ -37,12 +37,13 @@ def start_oefening(client, oefening_id=1):
     client.post("/set_system", json={"online": True})
     client.post("/start_calibration")
 
-    # Forceer gecalibreerde staat
+    # control_exercise reset is_calibrated, dus eerst de oefening starten...
+    client.post("/control_exercise", json={"oefening_id": oefening_id, "actief": 1})
+
+    # ...en daarna pas de gecalibreerde staat forceren
     s = list(sessions.values())[0]
     s["is_calibrated"] = True
     s["calibration_active"] = False
-
-    client.post("/control_exercise", json={"oefening_id": oefening_id, "actief": 1})
 
     # Stuur eerste update zodat last_state en last_change_time gezet worden
     client.post("/update_status", json={"state": 0, "calibration_status": "not_calibrated"})
