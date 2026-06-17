@@ -1,0 +1,4 @@
+[SYSTEM] System online: True
+0 1
+[COUNTER] Rep voltooid! Stand: 1
+1 0
