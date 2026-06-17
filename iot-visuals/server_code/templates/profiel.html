@@ -11,6 +11,119 @@
         .card-title  { font-size: 1.5rem; }
         .table       { font-size: 1.1rem; }
         .badge       { font-size: 1rem; padding: 6px 14px; }
+
+        /* kalender voor oefeningen kunnen inplannen */
+        .cal-header {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            text-align: center;
+            font-weight: 700;
+            color: #6c757d;
+            font-size: 1rem;
+            margin-bottom: 8px;
+        }
+
+        .cal-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 6px;
+        }
+
+        .cal-day {
+            aspect-ratio: 1;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: 2px solid #e9ecef;
+            background: white;
+            transition: all 0.15s;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .cal-day:hover { border-color: #198754; }
+        .cal-day.empty { cursor: default; border-color: transparent; background: transparent; }
+        .cal-day.today { border-color: #212529; font-weight: 800; }
+        .cal-day.planned { background: #d1e7dd; border-color: #198754; color: #0f5132; }
+        .cal-day.past-done { background: #198754; border-color: #198754; color: white; }
+        .cal-day.past-done::after { content: '✓'; font-size: 0.75rem; }
+
+        .cal-day-num { line-height: 1; }
+        .cal-dot { width: 6px; height: 6px; border-radius: 50%; background: #198754; margin-top: 3px; }
+
+        .month-nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .month-nav button {
+            background: none;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            padding: 6px 16px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            font-weight: 700;
+        }
+        .month-nav button:hover { border-color: #212529; }
+
+        .month-title { font-size: 1.4rem; font-weight: 800; }
+
+        /* pop-up wanneer je oefeningen wilt inplannen in kalender */
+        .picker-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: flex-end;
+            justify-content: center;
+        }
+        .picker-overlay.open { display: flex; }
+
+        .picker-sheet {
+            background: white;
+            border-radius: 20px 20px 0 0;
+            padding: 28px 24px 40px;
+            width: 100%;
+            max-width: 600px;
+        }
+
+        .picker-sheet h5 { font-size: 1.3rem; font-weight: 800; margin-bottom: 20px; }
+
+        .picker-option {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            font-weight: 600;
+            transition: border-color 0.15s, background 0.15s;
+        }
+        .picker-option:hover { border-color: #198754; background: #f8fff9; }
+        .picker-option .icon { font-size: 2rem; }
+
+        .picker-cancel {
+            width: 100%;
+            padding: 14px;
+            border: 2px solid #dee2e6;
+            border-radius: 12px;
+            background: white;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 4px;
+        }
     </style>
 </head>
 <body class="bg-light">
@@ -77,6 +190,30 @@
         </div>
     </div>
 
+    <!-- Kalender voor oefeningen inplannen -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body p-4">
+            <h5 class="fw-bold mb-3" style="font-size:1.5rem;">Oefeningen inplannen</h5>
+
+            <div class="month-nav">
+                <button onclick="changeMonth(-1)">‹</button>
+                <span class="month-title" id="monthTitle"></span>
+                <button onclick="changeMonth(1)">›</button>
+            </div>
+
+            <div class="cal-header">
+                <div>Ma</div><div>Di</div><div>Wo</div>
+                <div>Do</div><div>Vr</div><div>Za</div><div>Zo</div>
+            </div>
+
+            <div class="cal-grid" id="calGrid"></div>
+
+            <p class="text-muted mt-3 mb-0" style="font-size:1rem; text-align: center;">
+                Tik op een dag om een oefening in te plannen. Geplande dagen zijn groen gemarkeerd.
+            </p>
+        </div>
+    </div>
+
     <!-- log van voltooide oefeningen -->
     <div class="card shadow-sm border-0 mb-5">
         <div class="card-body p-4">
@@ -118,6 +255,199 @@
     </div>
 
 </div>
+
+<!-- overlay wanneer je oefening wilt inplannen in kalender, keuze uit beschikbare oefeningen -->
+<div class="picker-overlay" id="pickerOverlay">
+    <div class="picker-sheet">
+        <h5 id="pickerTitle">Oefening inplannen</h5>
+        <div id="pickerList" style="margin-bottom:12px;"></div>
+        <div class="picker-option" onclick="planExercise(1)">
+            <span class="icon">🍎</span>
+            <span>Appels plukken — 15 herhalingen</span>
+        </div>
+        <div class="picker-option" onclick="planExercise(2)">
+            <span class="icon">🧹</span>
+            <span>Doekje vegen — 20 herhalingen</span>
+        </div>
+        <button class="picker-cancel" onclick="closePicker()">Annuleren</button>
+    </div>
+</div>
+
+<script>
+    // ── KALENDER (ondersteunt meerdere oefeningen per dag) ─────────────────
+    const MAANDEN = ['Januari','Februari','Maart','April','Mei','Juni',
+                     'Juli','Augustus','September','Oktober','November','December'];
+
+    // planned: { 'YYYY-MM-DD': [1,2] }
+    let planned = JSON.parse(localStorage.getItem('planned_days') || '{}');
+    // Normalize stored data: if value is not an array (older format), wrap it
+    Object.keys(planned).forEach(k => {
+        if (!Array.isArray(planned[k])) {
+            planned[k] = [planned[k]];
+        }
+    });
+    let calYear, calMonth;
+    let pickerDate = null;
+
+    function exerciseIcon(id) {
+        return id === 1 ? '🍎' : id === 2 ? '🧹' : '🏷️';
+    }
+
+    function exerciseName(id) {
+        return id === 1 ? 'Appels plukken' : id === 2 ? 'Doekje vegen' : `Oefening ${id}`;
+    }
+
+    function initCalendar() {
+        const now = new Date();
+        calYear = now.getFullYear();
+        calMonth = now.getMonth();
+        renderCalendar();
+    }
+
+    function changeMonth(dir) {
+        calMonth += dir;
+        if (calMonth > 11) { calMonth = 0; calYear++; }
+        if (calMonth < 0)  { calMonth = 11; calYear--; }
+        renderCalendar();
+    }
+
+    function renderCalendar() {
+        document.getElementById('monthTitle').textContent = `${MAANDEN[calMonth]} ${calYear}`;
+        const grid = document.getElementById('calGrid');
+        grid.innerHTML = '';
+
+        const today = new Date();
+        const firstDay = new Date(calYear, calMonth, 1);
+        let startOffset = (firstDay.getDay() + 6) % 7;
+        const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+
+        for (let i = 0; i < startOffset; i++) {
+            const empty = document.createElement('div');
+            empty.className = 'cal-day empty';
+            grid.appendChild(empty);
+        }
+
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dateKey = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            const thisDate = new Date(calYear, calMonth, d);
+            const isToday = thisDate.toDateString() === today.toDateString();
+            const isPast  = thisDate < new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+            const arr = planned[dateKey] || [];
+
+            const cell = document.createElement('div');
+            cell.className = 'cal-day';
+            if (isToday) cell.classList.add('today');
+            if (arr.length && isPast) cell.classList.add('past-done');
+            else if (arr.length) cell.classList.add('planned');
+
+            cell.innerHTML = `<span class="cal-day-num">${d}</span><div class="cal-icons" style="display:flex;gap:4px;margin-top:6px;justify-content:center;flex-wrap:wrap;"></div>`;
+
+            if (arr.length) {
+                const icons = cell.querySelector('.cal-icons');
+                // show up to 3 icons, then +N
+                const maxShow = 3;
+                arr.slice(0, maxShow).forEach(id => {
+                    const s = document.createElement('div');
+                    s.style.fontSize = '0.9rem';
+                    s.textContent = exerciseIcon(id);
+                    icons.appendChild(s);
+                });
+                if (arr.length > maxShow) {
+                    const more = document.createElement('div');
+                    more.style.fontSize = '0.8rem';
+                    more.style.color = '#198754';
+                    more.textContent = `+${arr.length - maxShow}`;
+                    icons.appendChild(more);
+                }
+            }
+
+            if (!isPast || isToday) {
+                cell.onclick = () => openPicker(dateKey, d);
+            }
+
+            grid.appendChild(cell);
+        }
+    }
+
+    function openPicker(dateKey, day) {
+        pickerDate = dateKey;
+        const arr = planned[dateKey] || [];
+        document.getElementById('pickerTitle').textContent = `${day} ${MAANDEN[calMonth]} — ${arr.length} geplande oefening${arr.length !== 1 ? 'en' : ''}`;
+
+        const list = document.getElementById('pickerList');
+        list.innerHTML = '';
+        if (arr.length) {
+            arr.forEach((id, idx) => {
+                const row = document.createElement('div');
+                row.style.display = 'flex';
+                row.style.justifyContent = 'space-between';
+                row.style.alignItems = 'center';
+                row.style.padding = '8px 0';
+                row.innerHTML = `<div style="display:flex;gap:10px;align-items:center;"><div style="font-size:1.2rem;">${exerciseIcon(id)}</div><div>${exerciseName(id)}</div></div>`;
+                const rem = document.createElement('button');
+                rem.className = 'picker-cancel';
+                rem.style.margin = '0';
+                rem.style.minWidth = 'auto';
+                rem.textContent = 'Verwijder';
+                rem.onclick = (e) => { e.stopPropagation(); removePlanning(id); };
+                row.appendChild(rem);
+                list.appendChild(row);
+            });
+            // button to clear all
+            const clearAll = document.createElement('button');
+            clearAll.className = 'picker-cancel picker-remove';
+            clearAll.style.cssText = 'color:#dc3545; border-color:#dc3545; margin-top:8px;';
+            clearAll.textContent = 'Verwijder alle plannen';
+            clearAll.onclick = (e) => { e.stopPropagation(); removePlanning(); };
+            list.appendChild(clearAll);
+        }
+
+        document.getElementById('pickerOverlay').classList.add('open');
+    }
+
+    function closePicker() {
+        document.getElementById('pickerOverlay').classList.remove('open');
+        pickerDate = null;
+    }
+
+    function planExercise(id) {
+        if (!pickerDate) return;
+        if (!planned[pickerDate]) planned[pickerDate] = [];
+        // allow multiple entries
+        planned[pickerDate].push(id);
+        localStorage.setItem('planned_days', JSON.stringify(planned));
+        // refresh picker UI and calendar
+        openPicker(pickerDate, parseInt(pickerDate.split('-')[2], 10));
+        renderCalendar();
+    }
+
+    function removePlanning(id) {
+        if (!pickerDate) return;
+        if (!id) {
+            // remove all for that day
+            delete planned[pickerDate];
+        } else {
+            const arr = planned[pickerDate] || [];
+            const idx = arr.indexOf(id);
+            if (idx > -1) arr.splice(idx, 1);
+            if (arr.length === 0) delete planned[pickerDate];
+            else planned[pickerDate] = arr;
+        }
+        localStorage.setItem('planned_days', JSON.stringify(planned));
+        if (document.getElementById('pickerOverlay').classList.contains('open')) {
+            openPicker(pickerDate, parseInt(pickerDate.split('-')[2], 10));
+        }
+        renderCalendar();
+    }
+
+    // picker sluiten als je buiten het sheet klikt
+    document.getElementById('pickerOverlay').addEventListener('click', function(e) {
+        if (e.target === this) closePicker();
+    });
+
+    initCalendar();
+</script>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
