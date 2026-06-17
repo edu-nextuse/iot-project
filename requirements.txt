@@ -1,3 +1,4 @@
 pytest
 allure-pytest
-server
+requests
+flask
