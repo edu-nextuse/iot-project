@@ -3,25 +3,50 @@ import sys
 import os
 import time
 import allure
+import sqlite3
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "iot-visuals", "server_code"))
 
+import server as server_module
 from server import app, init_db, sessions
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
 @pytest.fixture
 def client():
-    """Flask test client met schone database en sessie."""
+    """Flask test client met in-memory database en schone sessie per test."""
     app.config["TESTING"] = True
     app.config["SECRET_KEY"] = "test"
 
+    # Maak één gedeelde in-memory connectie aan voor deze test
+    test_conn = sqlite3.connect(":memory:", check_same_thread=False)
+    test_conn.row_factory = sqlite3.Row
+    test_conn.execute("PRAGMA journal_mode=WAL")
+
+    # Wrapper die close() negeert zodat de in-memory DB niet verdwijnt tussen calls
+    class PersistentConn:
+        def __getattr__(self, name):
+            return getattr(test_conn, name)
+        def close(self):
+            pass  # niet sluiten — in-memory DB moet blijven bestaan
+
+    original_get_db = server_module.get_db
+
+    def mock_get_db():
+        return PersistentConn()
+
+    # Mock VOOR init_db zodat de tabellen op de test-connectie worden aangemaakt
+    server_module.get_db = mock_get_db
+
     with app.test_client() as client:
         with app.app_context():
-            init_db()
+            init_db()  # maakt tabellen aan op test_conn
         sessions.clear()
         yield client
         sessions.clear()
+
+    server_module.get_db = original_get_db
+    test_conn.close()
 
 def start_oefening(client, oefening_id=1):
     """Log in, start een oefening en initialiseer de state."""
@@ -63,6 +88,7 @@ def get_s():
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
 
+@allure.feature("FysioFit HerhalingsTeller & RitmeAnalyse")
 class TestFysioFitLogic:
 
     # ── Tempo Validatie ───────────────────────────────────────────────────────

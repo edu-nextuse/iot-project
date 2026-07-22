@@ -6,9 +6,35 @@
     <title>FysioFit Live Feedback</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body, html { height: 100%; margin: 0; transition: background-color 0.4s ease; overflow: hidden; }
-        .status-container {
+        body, html { height: 100%; margin: 0; overflow: hidden; }
+        .main-layout {
             height: 100vh;
+            display: flex;
+        }
+        .skeleton-pane {
+            flex: 0 0 42%;
+            background: #111;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        #skeleton-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        .skeleton-label {
+            position: absolute;
+            top: 12px;
+            left: 16px;
+            color: #aaa;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .status-container {
+            flex: 1;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -16,12 +42,14 @@
             text-align: center;
             color: white;
             padding: 20px;
+            transition: background-color 0.4s ease;
+            position: relative;
         }
-        .status-text { font-size: 3.5rem; font-weight: 800; text-transform: uppercase; }
-        .status-sub { font-size: 1.5rem; opacity: 0.9; margin-top: 10px; }
-        .exercise-badge { font-size: 1.2rem; background: rgba(0,0,0,0.4); padding: 8px 20px; border-radius: 50px; margin-bottom: 15px; }
-        .counter-badge { font-size: 2.5rem; font-weight: 800; background: rgba(255,255,255,0.2); padding: 5px 30px; border-radius: 15px; margin-bottom: 25px; }
-        .stop-overlay { position: absolute; bottom: 30px; z-index: 10; }
+        .status-text { font-size: 3rem; font-weight: 800; text-transform: uppercase; }
+        .status-sub { font-size: 1.3rem; opacity: 0.9; margin-top: 10px; }
+        .exercise-badge { font-size: 1.1rem; background: rgba(0,0,0,0.4); padding: 8px 20px; border-radius: 50px; margin-bottom: 15px; }
+        .counter-badge { font-size: 2.2rem; font-weight: 800; background: rgba(255,255,255,0.2); padding: 5px 30px; border-radius: 15px; margin-bottom: 25px; }
+        .stop-overlay { position: absolute; bottom: 24px; z-index: 10; }
         .bg-ok { background-color: #198754; }
         .bg-tempo { background-color: #ffc107; color: #212529 !important; }
         .bg-stuck { background-color: #fd7e14; }
@@ -30,19 +58,29 @@
         .bg-finished { background-color: #6f42c1; }
     </style>
 </head>
-<body id="status-bg" class="bg-unknown">
+<body>
 
-<div class="status-container position-relative">
-    <div id="exercise-name" class="exercise-badge fw-bold">Geen actieve oefening</div>
-    <div id="rep-counter-display" class="counter-badge">0 / 0</div>
-    <div id="status-text" class="status-text">Wachten...</div>
-    <div id="status-sub" class="status-sub">Start een oefening in het portaal om te beginnen.</div>
+<div class="main-layout">
 
-    <div class="stop-overlay">
-        <button id="back-btn" onclick="stopAndGoBack()" class="btn btn-light btn-lg text-danger fw-bold px-4 shadow">
-            ■ Oefening Stoppen & Terug
-        </button>
+    <div class="skeleton-pane">
+        <span class="skeleton-label">Live skeletweergave</span>
+        <canvas id="skeleton-canvas" width="800" height="600"></canvas>
     </div>
+
+    <div id="status-bg" class="status-container bg-unknown">
+        <div id="exercise-name" class="exercise-badge fw-bold">Geen actieve oefening</div>
+        <div id="rep-counter-display" class="counter-badge">0 / 0</div>
+        <div id="status-text" class="status-text">Wachten...</div>
+        <div id="status-sub" class="status-sub">Start een oefening in het portaal om te beginnen.</div>
+
+        <div class="stop-overlay">
+            <button id="back-btn" onclick="stopAndGoBack()" class="btn btn-light btn-lg text-danger fw-bold px-4 shadow">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:-3px; margin-right:6px;"><rect x="6" y="6" width="12" height="12"/></svg>
+                Oefening stoppen & terug
+            </button>
+        </div>
+    </div>
+
 </div>
 
 <script>
@@ -52,6 +90,82 @@
         2: "Oefening: Doekje vegen"
     };
 
+    // ── Skeleton weergave ──────────────────────────────────────────────
+    const canvas = document.getElementById('skeleton-canvas');
+    const ctx = canvas.getContext('2d');
+    let currentBox = null;
+
+    const CONNECTIONS = [
+        ["left_shoulder","right_shoulder"],
+        ["left_shoulder","left_elbow"],["left_elbow","left_wrist"],
+        ["right_shoulder","right_elbow"],["right_elbow","right_wrist"],
+        ["left_shoulder","left_hip"],["right_shoulder","right_hip"],
+        ["left_hip","right_hip"],
+        ["left_hip","left_knee"],["left_knee","left_ankle"],
+        ["right_hip","right_knee"],["right_knee","right_ankle"],
+        ["nose","left_eye"],["nose","right_eye"],
+        ["nose","left_ear"],["nose","right_ear"]
+    ];
+
+    function drawSkeleton(kp) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        if (currentBox) {
+            const [bx, by, bw, bh] = currentBox;
+            ctx.fillStyle = 'rgba(255, 235, 59, 0.07)';
+            ctx.fillRect(bx, by, bw, bh);
+            ctx.strokeStyle = '#ffeb3b';
+            ctx.lineWidth = 3;
+            ctx.setLineDash([8, 4]);
+            ctx.strokeRect(bx, by, bw, bh);
+            ctx.setLineDash([]);
+        }
+
+        if (!kp || Object.keys(kp).length === 0) {
+            ctx.fillStyle = '#555';
+            ctx.font = 'bold 18px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('Geen persoon gedetecteerd', canvas.width / 2, canvas.height / 2);
+            return;
+        }
+        ctx.strokeStyle = '#00e676';
+        ctx.lineWidth = 3;
+        for (const [a, b] of CONNECTIONS) {
+            if (!kp[a] || !kp[b]) continue;
+            ctx.beginPath();
+            ctx.moveTo(kp[a][0], kp[a][1]);
+            ctx.lineTo(kp[b][0], kp[b][1]);
+            ctx.stroke();
+        }
+        ctx.fillStyle = '#ffffff';
+        for (const key in kp) {
+            const [x, y] = kp[key];
+            ctx.beginPath();
+            ctx.arc(x, y, 6, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = '#ffeb3b';
+        for (const wrist of ["left_wrist", "right_wrist"]) {
+            if (kp[wrist]) {
+                ctx.beginPath();
+                ctx.arc(kp[wrist][0], kp[wrist][1], 12, 0, 2 * Math.PI);
+                ctx.stroke();
+            }
+        }
+    }
+
+    drawSkeleton(null);
+
+    async function pollSkeleton() {
+        try {
+            const res = await fetch('/keypoints');
+            const kp = await res.json();
+            drawSkeleton(kp);
+        } catch (e) { drawSkeleton(null); }
+    }
+
+    // ── Status weergave ────────────────────────────────────────────────
     async function update() {
         try {
             const resStatus = await fetch("/current");
@@ -63,6 +177,8 @@
             const errRes = await fetch("/error");
             const errData = await errRes.json();
 
+            currentBox = dataTask.box || null;
+
             const bg = document.getElementById("status-bg");
             const text = document.getElementById("status-text");
             const sub = document.getElementById("status-sub");
@@ -73,11 +189,10 @@
             exeName.textContent = oefeningenMatrix[dataTask.oefening_id] || `Oefening ID: ${dataTask.oefening_id}`;
             counterDisp.textContent = `${dataStatus.counter} / ${dataStatus.target}`;
 
-            // Pi error — heeft prioriteit boven normale status
             if (errData && errData.message) {
                 const oud = (Date.now() / 1000) - errData.time;
                 if (oud < 10) {
-                    bg.className = "bg-danger";
+                    bg.className = "status-container bg-danger";
                     text.textContent = "Pi fout";
                     sub.textContent = errData.message;
                     return;
@@ -85,40 +200,40 @@
             }
 
             if (dataTask.actief === 0) {
-                bg.className = "bg-unknown";
+                bg.className = "status-container bg-unknown";
                 text.textContent = "Standby";
                 sub.textContent = "Kies een oefening op het portaal om de meting te starten.";
                 return;
             }
 
             if (dataStatus.status === "finished") {
-                bg.className = "bg-finished";
-                text.textContent = "Goed gedaan! 🎉";
+                bg.className = "status-container bg-finished";
+                text.textContent = "Goed gedaan!";
                 sub.textContent = "De oefening is helemaal afgerond voor vandaag!";
                 backBtn.className = "btn btn-success btn-lg fw-bold px-4 shadow text-white";
-                backBtn.textContent = "✓ Terug naar Portaal";
+                backBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px; margin-right:6px;"><polyline points="20 6 9 17 4 12"/></svg>Terug naar portaal';
             } else if (dataStatus.status === "ok") {
-                bg.className = "bg-ok";
+                bg.className = "status-container bg-ok";
                 text.textContent = "Goed zo!";
                 sub.textContent = "Je houdt een perfect tempo aan.";
             } else if (dataStatus.status === "too_fast") {
-                bg.className = "bg-tempo";
-                text.textContent = "Te Snel!";
+                bg.className = "status-container bg-tempo";
+                text.textContent = "Te snel!";
                 sub.textContent = "Probeer de beweging rustiger uit te voeren.";
             } else if (dataStatus.status === "too_slow") {
-                bg.className = "bg-tempo";
-                text.textContent = "Te Langzaam!";
+                bg.className = "status-container bg-tempo";
+                text.textContent = "Te langzaam!";
                 sub.textContent = "Probeer het tempo iets op te voeren.";
             } else if (dataStatus.status === "no_movement") {
-                bg.className = "bg-stuck";
+                bg.className = "status-container bg-stuck";
                 text.textContent = "Inactief";
                 sub.textContent = "Kom in beweging! Wissel tussen de posities.";
             } else if (dataStatus.status === "error_piconnect") {
-                bg.className = "bg-danger";
+                bg.className = "status-container bg-danger";
                 text.textContent = "Verbindingsfout";
                 sub.textContent = "Geen signaal ontvangen van de camera/Pi 5.";
             } else if (dataStatus.status === "unknown") {
-                bg.className = "bg-unknown";
+                bg.className = "status-container bg-unknown";
                 text.textContent = "Kom in beweging";
                 sub.textContent = "Begin de oefening om te starten.";
             }
@@ -147,7 +262,9 @@
     }
 
     setInterval(update, 250);
+    setInterval(pollSkeleton, 100);
     update();
+    pollSkeleton();
 </script>
 
 </body>

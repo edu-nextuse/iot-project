@@ -6,11 +6,72 @@
     <title>FysioFit – Inloggen</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { font-size: 1.2rem; }
-        .navbar-brand { font-size: 1.4rem; }
-        .form-control { font-size: 1.2rem; padding: 12px 16px; }
-        .form-label   { font-size: 1.1rem; font-weight: 600; }
-        .btn-lg-custom { font-size: 1.3rem; padding: 14px; font-weight: 700; width: 100%; }
+        * { box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; margin: 0; width: 1024px; }
+        body { font-size: 1rem; position: relative; }
+
+        .navbar { height: 44px; padding: 0; }
+        .navbar .container { height: 100%; display: flex; align-items: center; }
+        .navbar-brand { font-size: 1.15rem; }
+
+        .main-area {
+            position: absolute;
+            top: 44px;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+            transition: bottom 0.15s ease;
+        }
+        .main-area.kb-open { bottom: 280px; }
+
+        .login-card {
+            width: 92%;
+            max-width: 460px;
+            box-sizing: border-box;
+        }
+
+        .form-control { font-size: 0.95rem; padding: 7px 10px; }
+        .form-label   { font-size: 0.9rem; font-weight: 600; margin-bottom: 3px; }
+        .btn-lg-custom { font-size: 1rem; padding: 9px; font-weight: 700; width: 100%; }
+        .card-body { padding: 1.25rem 1.5rem !important; }
+        .mb-field { margin-bottom: 0.7rem; }
+
+        #keyboard-overlay {
+            display: none;
+            position: absolute;
+            left: 0; right: 0; bottom: 0;
+            background: #212529;
+            padding: 8px 12px 10px;
+            box-shadow: 0 -4px 16px rgba(0,0,0,0.25);
+            box-sizing: border-box;
+        }
+        #keyboard-overlay.open { display: block; }
+        .kb-row { display: flex; gap: 5px; margin-bottom: 5px; justify-content: center; }
+        .kb-key {
+            flex: 1;
+            max-width: 56px;
+            height: 36px;
+            background: #343a40;
+            color: white;
+            border: none;
+            border-radius: 7px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .kb-key:active { background: #495057; }
+        .kb-key.wide { max-width: 96px; }
+        .kb-key.space { max-width: 320px; flex: 4; }
+        .kb-key.accent { background: #0d6efd; }
+        .kb-key.accent:active { background: #0b5ed7; }
     </style>
 </head>
 <body class="bg-light">
@@ -21,39 +82,126 @@
     </div>
 </nav>
 
-<div class="container mt-5">
-    <div class="row">
-        <div class="col-md-6 mx-auto">
-            <div class="card shadow-sm border-0">
-                <div class="card-body p-5">
-                    <h4 class="fw-bold mb-1">Inloggen</h4>
-                    <p class="text-muted mb-4">Log in om door te gaan met je oefeningen.</p>
+<div class="main-area" id="main-area">
+    <div class="card shadow-sm border-0 login-card">
+        <div class="card-body">
+            <h5 class="fw-bold mb-1">Inloggen</h5>
+            <p class="text-muted mb-3" style="font-size:0.85rem;">Log in om door te gaan met je oefeningen.</p>
 
-                    {% if error %}
-                    <div class="alert alert-danger">{{ error }}</div>
-                    {% endif %}
+            {% if error %}
+            <div class="alert alert-danger py-2">{{ error }}</div>
+            {% endif %}
 
-                    <form method="POST" action="/login">
-                        <div class="mb-4">
-                            <label class="form-label">E-mailadres</label>
-                            <input type="email" name="email" class="form-control" placeholder="naam@voorbeeld.nl" required>
-                        </div>
-                        <div class="mb-4">
-                            <label class="form-label">Wachtwoord</label>
-                            <input type="password" name="password" class="form-control" placeholder="••••••••" required>
-                        </div>
-                        <button type="submit" class="btn btn-dark btn-lg-custom">Inloggen</button>
-                    </form>
-
-                    <hr class="my-4">
-                    <p class="text-center text-muted mb-0">
-                        Nog geen account? <a href="/register" class="text-dark fw-bold">Registreer je hier</a>
-                    </p>
+            <form method="POST" action="/login">
+                <div class="mb-field">
+                    <label class="form-label">E-mailadres</label>
+                    <input type="text" name="email" class="form-control kb-input" data-kb-type="email" placeholder="naam@voorbeeld.nl" autocomplete="off" readonly required>
                 </div>
-            </div>
+                <div class="mb-field">
+                    <label class="form-label">Wachtwoord</label>
+                    <input type="password" name="password" class="form-control kb-input" data-kb-type="text" placeholder="••••••••" autocomplete="off" readonly required>
+                </div>
+                <button type="submit" class="btn btn-dark btn-lg-custom">Inloggen</button>
+            </form>
+
+            <hr class="my-2">
+            <p class="text-center text-muted mb-0" style="font-size:0.85rem;">
+                Nog geen account? <a href="/register" class="text-dark fw-bold">Registreer je hier</a>
+            </p>
         </div>
     </div>
 </div>
+
+<div id="keyboard-overlay">
+    <div id="kb-rows"></div>
+</div>
+
+<script>
+const LAYOUT_LETTERS = [
+    ["1","2","3","4","5","6","7","8","9","0"],
+    ["q","w","e","r","t","y","u","i","o","p"],
+    ["a","s","d","f","g","h","j","k","l"],
+    ["SHIFT","z","x","c","v","b","n","m","BACK"],
+    ["@",".","SPACE","-","ENTER"]
+];
+
+let activeInput = null;
+let shiftOn = false;
+
+function buildKeyboard() {
+    const rowsEl = document.getElementById('kb-rows');
+    rowsEl.innerHTML = '';
+    LAYOUT_LETTERS.forEach(row => {
+        const rowEl = document.createElement('div');
+        rowEl.className = 'kb-row';
+        row.forEach(key => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'kb-key';
+            if (key === 'SPACE') { btn.classList.add('space'); btn.textContent = ''; }
+            else if (key === 'SHIFT') { btn.classList.add('wide'); btn.textContent = '⇧'; }
+            else if (key === 'BACK') { btn.classList.add('wide'); btn.textContent = '⌫'; }
+            else if (key === 'ENTER') { btn.classList.add('wide', 'accent'); btn.textContent = 'OK'; }
+            else { btn.textContent = shiftOn ? key.toUpperCase() : key; }
+
+            btn.addEventListener('click', () => handleKey(key));
+            rowEl.appendChild(btn);
+        });
+        rowsEl.appendChild(rowEl);
+    });
+}
+
+function handleKey(key) {
+    if (!activeInput) return;
+
+    if (key === 'BACK') {
+        activeInput.value = activeInput.value.slice(0, -1);
+    } else if (key === 'SPACE') {
+        activeInput.value += ' ';
+    } else if (key === 'SHIFT') {
+        shiftOn = !shiftOn;
+        buildKeyboard();
+        return;
+    } else if (key === 'ENTER') {
+        closeKeyboard();
+        return;
+    } else {
+        activeInput.value += shiftOn ? key.toUpperCase() : key;
+    }
+    activeInput.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+function openKeyboard(input) {
+    activeInput = input;
+    shiftOn = false;
+    buildKeyboard();
+    document.getElementById('keyboard-overlay').classList.add('open');
+    document.getElementById('main-area').classList.add('kb-open');
+}
+
+function closeKeyboard() {
+    document.getElementById('keyboard-overlay').classList.remove('open');
+    document.getElementById('main-area').classList.remove('kb-open');
+    activeInput = null;
+}
+
+document.querySelectorAll('.kb-input').forEach(input => {
+    input.addEventListener('click', (e) => {
+        e.preventDefault();
+        openKeyboard(e.target);
+    });
+});
+
+document.getElementById('keyboard-overlay').addEventListener('mousedown', (e) => {
+    e.preventDefault();
+});
+
+document.querySelector('.card-body').addEventListener('click', (e) => {
+    if (!e.target.classList.contains('kb-input') && activeInput) {
+        closeKeyboard();
+    }
+});
+</script>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
