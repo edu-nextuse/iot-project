@@ -1,2 +1,4 @@
 pytest
 allure-pytest
+requests
+flask
